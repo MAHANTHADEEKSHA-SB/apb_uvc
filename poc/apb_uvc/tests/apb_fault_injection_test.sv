@@ -29,8 +29,8 @@ class apb_fault_injection_test extends apb_poc_test;
     env.agent_a.cfg.drive.set_fault(fault);
     env.agent_a.monitor.set_report_severity_id_override(UVM_ERROR, "APB_PROTOCOL", UVM_INFO);
     env.sb_a.enabled = 1'b0;
-    `uvm_info("APB_FAULT", $sformatf("injecting %s on %s", fault.name(), env.agent_a.get_full_name()),
-              UVM_LOW)
+    `uvm_info("APB_FAULT", $sformatf("injecting %s on %s",
+                                     fault.name(), env.agent_a.get_full_name()), UVM_LOW)
   endfunction
 
   // Replaces apb_poc_test::check_phase: instance A is expected to misbehave
@@ -45,7 +45,8 @@ class apb_fault_injection_test extends apb_poc_test;
       `uvm_error("APB_FAULT", $sformatf("injected %s was NOT detected (%s count is 0)",
                                         fault.name(), want.name()))
     else
-      `uvm_info("APB_FAULT", $sformatf("detected: %0d x %s", env.agent_a.cfg.observe.get_error_count(want),
+      `uvm_info("APB_FAULT", $sformatf("detected: %0d x %s",
+                                       env.agent_a.cfg.observe.get_error_count(want),
                                        want.name()), UVM_LOW)
     if (env.agent_b.cfg.observe.get_total_errors() != 0)
       `uvm_error("APB_FAULT", "instance B reported protocol errors: fault leaked across instances")

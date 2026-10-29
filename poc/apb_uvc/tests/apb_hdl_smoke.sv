@@ -185,7 +185,7 @@ module apb_hdl_smoke;
       $display("SMOKE_INFO [%s] %0d transfers checked, monitor errors=%0d",
                name, exp_write.size(), mon.get_total_errors());
     endtask
-  endclass
+  endclass : smoke_runner
 
   smoke_runner #(32, 32) run_a;
   smoke_runner #(32, 16) run_b;

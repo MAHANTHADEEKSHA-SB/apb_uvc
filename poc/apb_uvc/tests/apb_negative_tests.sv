@@ -22,31 +22,75 @@ class apb_cfg_negative_test extends apb_poc_base_test;
     apb_agent_cfg c;
     phase.raise_objection(this);
 
-    c = make_cfg(32, 32, 32, 32);                           expect_verdict("APB4 DW=32", c, "");
-    c = make_cfg(32, 16, 32, 16);                           expect_verdict("APB4 DW=16", c, "");
-    c = make_cfg(32, 32, 32, 16);                           expect_verdict("cross-wired DW=32/16", c, "CFG-06");
-    c = make_cfg(33, 32, 33, 32);                           expect_verdict("AW=33", c, "CFG-03");
-    c = make_cfg(32, 24, 32, 24);                           expect_verdict("DW=24", c, "CFG-04");
-    c = make_cfg(32, 64, 32, 64);                           expect_verdict("DW=64 without opt-in", c, "CFG-04");
-    c = make_cfg(32, 64, 32, 64); c.allow_nonstandard_width = 1'b1;
-                                                            expect_verdict("DW=64 with opt-in", c, "");
-    c = make_cfg(32, 32, 32, 32); c.features.revision = APB3;
-                                                            expect_verdict("APB3 with PSTRB/PPROT", c, "CFG-01");
-    c = make_cfg(32, 32, 32, 32); c.features.revision = APB3;
-    c.features.has_pstrb = 1'b0; c.features.has_pprot = 1'b0;
-                                                            expect_verdict("APB3 without PSTRB/PPROT", c, "");
-    c = make_cfg(32, 32, 32, 32); c.features.revision = APB2;
-    c.features.has_pstrb = 1'b0;                            expect_verdict("APB2 with PPROT", c, "CFG-01");
-    c = make_cfg(32, 32, 32, 32); c.features.has_pwakeup = 1'b1;
-                                                            expect_verdict("APB4 with PWAKEUP", c, "CFG-02");
-    c = make_cfg(32, 32, 32, 32); c.features.revision = APB5; c.features.has_pwakeup = 1'b1;
-                                                            expect_verdict("APB5 PWAKEUP (M2)", c, "PWAKEUP");
-    c = make_cfg(32, 32, 32, 32); c.features.revision = APB5;
-    c.features.check_type = APB_CHECK_ODD_PARITY_BYTE_ALL;  expect_verdict("APB5 parity (M3)", c, "parity");
-    c = make_cfg(32, 32, 32, 32); c.drive = null;           expect_verdict("active without drive", c, "active agent");
-    c = make_cfg(32, 32, 32, 32); c.drive = null; c.is_active = UVM_PASSIVE;
-                                                            expect_verdict("passive without drive", c, "");
-    c = make_cfg(32, 32, 32, 32); c.observe = null;         expect_verdict("no observe proxy", c, "no observe");
+    // Legal widths
+    c = make_cfg(32, 32, 32, 32);
+    expect_verdict("APB4 DW=32", c, "");
+
+    c = make_cfg(32, 16, 32, 16);
+    expect_verdict("APB4 DW=16", c, "");
+
+    // CFG-06: adapters bound to different bus specializations
+    c = make_cfg(32, 32, 32, 16);
+    expect_verdict("cross-wired DW=32/16", c, "CFG-06");
+
+    // CFG-03 / CFG-04: widths outside IHI 0024D
+    c = make_cfg(33, 32, 33, 32);
+    expect_verdict("AW=33", c, "CFG-03");
+
+    c = make_cfg(32, 24, 32, 24);
+    expect_verdict("DW=24", c, "CFG-04");
+
+    c = make_cfg(32, 64, 32, 64);
+    expect_verdict("DW=64 without opt-in", c, "CFG-04");
+
+    c = make_cfg(32, 64, 32, 64);
+    c.allow_nonstandard_width = 1'b1;
+    expect_verdict("DW=64 with opt-in", c, "");
+
+    // CFG-01: PSTRB/PPROT need APB4 or later
+    c = make_cfg(32, 32, 32, 32);
+    c.features.revision = APB3;
+    expect_verdict("APB3 with PSTRB/PPROT", c, "CFG-01");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.features.revision  = APB3;
+    c.features.has_pstrb = 1'b0;
+    c.features.has_pprot = 1'b0;
+    expect_verdict("APB3 without PSTRB/PPROT", c, "");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.features.revision  = APB2;
+    c.features.has_pstrb = 1'b0;
+    expect_verdict("APB2 with PPROT", c, "CFG-01");
+
+    // CFG-02: APB5-only features; M2/M3 limits
+    c = make_cfg(32, 32, 32, 32);
+    c.features.has_pwakeup = 1'b1;
+    expect_verdict("APB4 with PWAKEUP", c, "CFG-02");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.features.revision    = APB5;
+    c.features.has_pwakeup = 1'b1;
+    expect_verdict("APB5 PWAKEUP (M2)", c, "PWAKEUP");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.features.revision   = APB5;
+    c.features.check_type = APB_CHECK_ODD_PARITY_BYTE_ALL;
+    expect_verdict("APB5 parity (M3)", c, "parity");
+
+    // Capability handles
+    c = make_cfg(32, 32, 32, 32);
+    c.drive = null;
+    expect_verdict("active without drive", c, "active agent");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.drive     = null;
+    c.is_active = UVM_PASSIVE;
+    expect_verdict("passive without drive", c, "");
+
+    c = make_cfg(32, 32, 32, 32);
+    c.observe = null;
+    expect_verdict("no observe proxy", c, "no observe");
 
     phase.drop_objection(this);
   endtask

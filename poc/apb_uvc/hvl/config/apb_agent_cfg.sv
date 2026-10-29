@@ -69,9 +69,10 @@ class apb_agent_cfg extends uvm_object;
     // CFG-06: both adapters must be bound to the same bus specialization
     if (drive != null && (drive.get_addr_width() != aw || drive.get_data_width() != dw ||
                           drive.get_num_sel() != observe.get_num_sel()))
-      return $sformatf("CFG-06: drive proxy AW=%0d DW=%0d NUM_SEL=%0d differs from observe proxy AW=%0d DW=%0d NUM_SEL=%0d",
-                       drive.get_addr_width(), drive.get_data_width(), drive.get_num_sel(),
-                       aw, dw, observe.get_num_sel());
+      return $sformatf(
+          "CFG-06: drive proxy AW=%0d DW=%0d NUM_SEL=%0d, observe proxy AW=%0d DW=%0d NUM_SEL=%0d",
+          drive.get_addr_width(), drive.get_data_width(), drive.get_num_sel(),
+          aw, dw, observe.get_num_sel());
     // CFG-03: IHI 0024D Table 2-1
     if (aw < 1 || aw > 32)
       return $sformatf("CFG-03: ADDR_WIDTH=%0d outside 1..32", aw);
@@ -102,9 +103,11 @@ class apb_agent_cfg extends uvm_object;
     if (problem != "")
       `uvm_fatal("APB_CFG", {get_name(), ": ", problem})
     if (is_active == UVM_PASSIVE && drive != null)
-      `uvm_warning("APB_CFG", {get_name(), ": passive agent has a drive proxy; it will not be used"})
+      `uvm_warning("APB_CFG",
+                   {get_name(), ": passive agent has a drive proxy; it will not be used"})
     if (data_width() == 64)
-      `uvm_warning("APB_CFG", {get_name(), ": DATA_WIDTH=64 is a NON-STANDARD extension, not IHI 0024D compliant"})
+      `uvm_warning("APB_CFG", {get_name(),
+                   ": DATA_WIDTH=64 is a NON-STANDARD extension, not IHI 0024D compliant"})
   endfunction
 
   virtual function string convert2string();

@@ -42,7 +42,7 @@ class apb_monitor_proxy #(
       `uvm_fatal("APB_PROXY", $sformatf("%s: null monitor BFM handle", name))
     if (ADDR_WIDTH > APB_MAX_AW || DATA_WIDTH > APB_MAX_DW)
       `uvm_fatal("APB_PROXY", $sformatf(
-        "%s: bus AW=%0d DW=%0d exceeds transaction maxima AW=%0d DW=%0d; set +define+APB_MAX_DATA_WIDTH",
+        "%s: bus AW=%0d DW=%0d exceeds maxima AW=%0d DW=%0d; set +define+APB_MAX_DATA_WIDTH",
         name, ADDR_WIDTH, DATA_WIDTH, APB_MAX_AW, APB_MAX_DW))
     this.vif      = vif;
     this.features = apb_default_features();
@@ -91,7 +91,8 @@ class apb_monitor_proxy #(
                      start_cycle, end_cycle);
 
     observed = apb_transaction::type_id::create("observed");
-    observed.set_bus_context(ADDR_WIDTH, DATA_WIDTH, NUM_SEL, features.has_pstrb, features.has_pprot);
+    observed.set_bus_context(ADDR_WIDTH, DATA_WIDTH, NUM_SEL,
+                             features.has_pstrb, features.has_pprot);
     observed.instance_name = get_name();
     observed.dir           = write ? APB_WRITE : APB_READ;
     observed.addr          = APB_MAX_AW'(addr);

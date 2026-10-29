@@ -44,7 +44,7 @@ class apb_drive_proxy #(
       `uvm_fatal("APB_PROXY", $sformatf("%s: null driver BFM handle", name))
     if (ADDR_WIDTH > APB_MAX_AW || DATA_WIDTH > APB_MAX_DW)
       `uvm_fatal("APB_PROXY", $sformatf(
-        "%s: bus AW=%0d DW=%0d exceeds transaction maxima AW=%0d DW=%0d; set +define+APB_MAX_DATA_WIDTH",
+        "%s: bus AW=%0d DW=%0d exceeds maxima AW=%0d DW=%0d; set +define+APB_MAX_DATA_WIDTH",
         name, ADDR_WIDTH, DATA_WIDTH, APB_MAX_AW, APB_MAX_DW))
     this.vif      = vif;
     this.features = apb_default_features();
@@ -122,15 +122,18 @@ class apb_drive_proxy #(
     end
     // Lossless rule: every bit at or above the bus width must be a known 0
     if (!upper_bits_zero_addr(req.addr)) begin
-      `uvm_error("APB_REQ", $sformatf("%s: addr %0h does not fit AW=%0d", get_name(), req.addr, ADDR_WIDTH))
+      `uvm_error("APB_REQ", $sformatf("%s: addr %0h does not fit AW=%0d",
+                                      get_name(), req.addr, ADDR_WIDTH))
       ok = 1'b0;
     end
     if (!upper_bits_zero_data(req.wdata)) begin
-      `uvm_error("APB_REQ", $sformatf("%s: wdata %0h does not fit DW=%0d", get_name(), req.wdata, DATA_WIDTH))
+      `uvm_error("APB_REQ", $sformatf("%s: wdata %0h does not fit DW=%0d",
+                                      get_name(), req.wdata, DATA_WIDTH))
       ok = 1'b0;
     end
     if (!upper_bits_zero_strb(req.strb)) begin
-      `uvm_error("APB_REQ", $sformatf("%s: strb %0h does not fit DW=%0d", get_name(), req.strb, DATA_WIDTH))
+      `uvm_error("APB_REQ", $sformatf("%s: strb %0h does not fit DW=%0d",
+                                      get_name(), req.strb, DATA_WIDTH))
       ok = 1'b0;
     end
     if (req.sel >= NUM_SEL) begin

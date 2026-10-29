@@ -148,7 +148,9 @@ interface apb_driver_bfm_if
 
   // RST-5: return after PRESETn is sampled HIGH, plus idle_cycles more edges
   task automatic wait_for_reset_release(input int unsigned idle_cycles = 1);
-    do @(cb); while (cb.PRESETn !== 1'b1);
+    do
+      @(cb);
+    while (cb.PRESETn !== 1'b1);
     repeat (idle_cycles) @(cb);
   endtask
 
@@ -177,10 +179,18 @@ interface apb_driver_bfm_if
     wait_states = 0;
     status      = APB_ST_OK;
 
-    if (!drive_en)           begin status = APB_ST_NOT_ENABLED;   return; end
-    if (busy)                begin status = APB_ST_BAD_REQUEST;   return; end
-    if (sel >= unsigned'(NUM_SEL)) begin status = APB_ST_BAD_REQUEST; return; end
-    if (PRESETn !== 1'b1)    begin status = APB_ST_RESET_ABORTED; return; end
+    if (!drive_en) begin
+      status = APB_ST_NOT_ENABLED;
+      return;
+    end
+    if (busy || sel >= unsigned'(NUM_SEL)) begin
+      status = APB_ST_BAD_REQUEST;
+      return;
+    end
+    if (PRESETn !== 1'b1) begin
+      status = APB_ST_RESET_ABORTED;
+      return;
+    end
 
     busy = 1'b1;
     st   = APB_ST_OK;

@@ -265,7 +265,8 @@ interface apb_monitor_bfm_if
       return;
     end
     if (!$onehot0(cb.PSEL))
-      flag(APB_MON_ERR_MULTIPLE_PSEL, $sformatf("PSEL=%b selects more than one Completer", cb.PSEL));
+      flag(APB_MON_ERR_MULTIPLE_PSEL,
+           $sformatf("PSEL=%b selects more than one Completer", cb.PSEL));
 
     // IDLE
     if (cb.PSEL == '0) begin

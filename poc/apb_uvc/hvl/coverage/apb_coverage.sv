@@ -40,7 +40,7 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
     x_dir_waits  : cross cp_dir, cp_waits;
     x_dir_slverr : cross cp_dir, cp_slverr;
     x_dir_b2b    : cross cp_dir, cp_b2b;
-  endgroup
+  endgroup : cg
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
