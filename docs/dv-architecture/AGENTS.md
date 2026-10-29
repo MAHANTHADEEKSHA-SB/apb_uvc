@@ -4,16 +4,21 @@
 
 ## Mandatory read before changes
 
-1. `docs/dv-architecture/ARCHITECTURE_CONTRACT.md`
-2. `docs/dv-architecture/ADR-001-HVL-PROXY-PLACEMENT.md` and `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`
-3. `docs/dv-architecture/DIRECTORY_ARCHITECTURE.md`
-4. `docs/dv-architecture/WORK_STATUS.md`
-5. `docs/dv-architecture/REVIEW_FEEDBACK.md`
-6. `docs/dv-architecture/CLAUDE_GENERATION_PROMPT.md` when implementing.
+1. `docs/dv-architecture/DECISION_LOG.md` — every owner decision (overrides everything below)
+2. `docs/dv-architecture/CODING_GUIDELINES.md` — **mandatory** coding standard and pre-commit checklist
+3. `docs/dv-architecture/ARCHITECTURE_CONTRACT.md`
+4. `docs/dv-architecture/ADR-001-HVL-PROXY-PLACEMENT.md` and `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`
+5. `docs/dv-architecture/DIRECTORY_ARCHITECTURE.md`
+6. `docs/dv-architecture/APB_PROTOCOL_CONTRACT.md`
+7. `docs/dv-architecture/WORK_STATUS.md` (start with "Resume here")
+8. `docs/dv-architecture/REVIEW_FEEDBACK.md`
+9. `docs/dv-architecture/CLAUDE_GENERATION_PROMPT.md` when implementing.
 
 ## Required workflow
 
 - Inspect actual branch, exact SHA, `git status --short`, source manifest and available tools before changing anything.
+- Write every change to `CODING_GUIDELINES.md` and tick its pre-commit checklist (§13) before committing. Record new owner decisions in `DECISION_LOG.md` immediately.
+- Run no tool and add no tool option without explicit owner approval (`WORK_STATUS.md` *Toolchain approval request*); never add tool-specific code.
 - Record APB revision, explicit signal subset, AW/DW widths, reset policy, API transaction encoding, clocking, and BFM-to-pin wiring before declaring compile readiness.
 - Work on **one smallest testable APB milestone**; keep new code within `poc/apb_uvc/`. Do not touch original root-level APB UVC code.
 - Preserve approved architectural decisions unless a documented, approved ADR amendment is provided. If a rule seems invalid, demonstrate a counterexample and propose change, don't silently sidestep it.

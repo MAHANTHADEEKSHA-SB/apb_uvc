@@ -1,0 +1,230 @@
+# Coding guidelines — single APB UVC POC
+
+**Status:** MANDATORY for every change under `poc/apb_uvc/` (owner decision D-012, `DECISION_LOG.md`).
+**Version:** 1.0 · **Date:** 2026-10-29
+**Applies to:** SystemVerilog HDL (interfaces, BFMs, example DUT), SystemVerilog/UVM HVL (packages, classes, tests), filelists, helper scripts, and the Git history of this POC.
+
+**Precedence:** owner decisions (`DECISION_LOG.md`) > `ARCHITECTURE_CONTRACT.md` and accepted ADRs > `APB_PROTOCOL_CONTRACT.md` > these guidelines > tool defaults. If a guideline conflicts with a higher document, follow the higher one and record the conflict in `REVIEW_FEEDBACK.md`.
+
+**Background:** the rules are this project's own. They are informed by IEEE 1800-2017 (SystemVerilog), IEEE 1800.2 and the Accellera UVM 1.2 User's Guide and Class Reference, the Verification Academy UVM Cookbook, and the public lowRISC Verilog/SystemVerilog style guide. Nothing is copied from those sources.
+
+Each rule has an ID. Cite it in reviews (`REVIEW_FEEDBACK.md`) and commit messages when a change exists because of a rule.
+
+---
+
+## 1. Non-negotiable rules (owner decisions)
+
+| ID | Rule |
+|---|---|
+| NN-01 | **Portable standard code only.** IEEE 1800-2017 SystemVerilog and UVM APIs common to UVM 1.2 and IEEE 1800.2. No tool-specific code paths (`` `ifdef VERILATOR ``, `` `ifdef VCS ``, …), tool pragmas or comment directives (`// synopsys …`, `/* verilator … */`, lint waivers), vendor system tasks, or rewrites made only to suit one tool (D-005). |
+| NN-02 | **Toolchain gate.** Run no simulator, compiler, elaborator or lint tool, and add no tool option, without the owner's explicit approval of the tool, version, exact command and options (D-006). Approvals are listed in `WORK_STATUS.md` *Toolchain approval request*. |
+| NN-03 | **Honest status.** Anything not executed is **NOT RUN**. Never claim compile, simulation, coverage, emulation or performance results without the command, tool version, log and Git SHA. |
+| NN-04 | **Scope.** New code only under `poc/apb_uvc/`. Never modify the root-level legacy `apb_*.sv` files. One APB UVC only: no other protocol UVC, multi-UVC framework or DUT-specific scoreboard in the core. |
+| NN-05 | **Accepted decisions are not silently changed.** Changing an ADR or contract decision needs a counterexample, a written proposal and owner approval. |
+| NN-06 | **Tool shortfalls are logged, not coded around.** Classify every tool finding as *source bug*, *standard violation* or *tool limitation*. Fix the first two in a tool-neutral way; record the third in `REVIEW_FEEDBACK.md`. |
+
+---
+
+## 2. Language and portability
+
+| ID | Rule |
+|---|---|
+| LANG-01 | Use only IEEE 1800-2017 constructs. Before relying on a rarely supported construct, add it to the README *Language features* list. |
+| LANG-02 | Declare every net and variable; no implicit nets. Ports declare their kind: `input wire logic` for interface/BFM ports that may be resolved, `input logic`/`output logic` for single-driver module ports. |
+| LANG-03 | Give every literal and every cast an explicit, intended width. No silent truncation or sign extension: use unsigned `logic` vectors for payload and cast by size (`W'(x)`) only after proving the value fits. |
+| LANG-04 | Keep 4-state values where they carry meaning: payload, observed pins and responses use `logic`. Use `bit`/`int` only for control state, counters and enums. Compare 4-state values with `===`/`!==` when X/Z must be distinguished. |
+| LANG-05 | Do not rely on edge semantics: no shift by the full operand width or more, no out-of-range constant part-selects, no reliance on the evaluation order of `||`/`&&` side effects. |
+| LANG-06 | No initializer on a static variable inside a procedural block (`initial`, `always`, static tasks). Declare it, then assign it. Class methods and `automatic` tasks/functions may initialize locals. |
+| LANG-07 | Tasks and functions in interfaces, packages and classes are `automatic`. Static lifetime only where state is intentionally shared, with a comment saying so. |
+| LANG-08 | A `fork…join_any` that is followed by `disable fork` is wrapped in an outer `fork begin … end join`, so `disable fork` cannot reach the caller's processes. |
+| LANG-09 | No `#0` delays and no zero-time races used as synchronization. Order with clocking blocks, NBA updates or events, and check the condition before waiting on an event. |
+| LANG-10 | Time scale: every file that is compiled on its own (modules, interfaces, packages) starts with `` `timescale 1ns/1ps `` after its header. Files `include`d into a package do not. Time literals carry units (`200ns`). |
+| LANG-11 | Compile-time switches are project feature switches only (for example `APB_ENABLE_DW64_EXTENSION`), named `APB_*`, documented in the README and default off. Never switch on tool identity. |
+| LANG-12 | No hierarchical references in the reusable core (`hdl/`, `hvl/`). They are allowed only in integration and test code (`examples/`, `tests/`), for example binding adapters to BFM instances. |
+| LANG-13 | No DPI, `$system`, file I/O or plusarg parsing in the reusable core. Plusargs belong in tests (`+APB_FAULT`, `+UVM_TESTNAME`). |
+
+---
+
+## 3. Files and organization
+
+| ID | Rule |
+|---|---|
+| FILE-01 | Follow the layout of `DIRECTORY_ARCHITECTURE.md` and the manifest in `APB_PROTOCOL_CONTRACT.md` §10. Add new paths to that manifest and to `WORK_STATUS.md` in the same change. |
+| FILE-02 | One primary design element per file (one module, interface, package or class), and the file name equals the element name. Small, tightly related helpers may share a file when the header lists them (for example the test doubles in `tests/apb_fake_proxies.sv`). |
+| FILE-03 | Extensions: `.sv` for SystemVerilog sources, including class files `include`d into a package (fixed by the approved directory plan); `.svh` only for macro/define headers. |
+| FILE-04 | Every file starts with a header block (see §11): purpose, the spec rule / ADR / contract IDs it implements, and either "Included by <pkg>" or its compile position. |
+| FILE-05 | Headers (`.svh`) use include guards: `` `ifndef APB_<NAME>_SVH `` / `` `define `` / `` `endif ``. |
+| FILE-06 | A package file contains, in this order: `import uvm_pkg::*;` and `` `include "uvm_macros.svh" `` (if it uses UVM), other imports, package-level parameters, then `` `include `` lines in dependency order. No wildcard `export`. |
+| FILE-07 | Compile order is fixed in filelists: `apb_bfm_pkg` → HDL interfaces → `uvm_pkg` → `apb_api_pkg` → `apb_uvc_pkg` → `apb_adapter_pkg` → examples/tests. The core never depends on examples or tests, and `apb_uvc_pkg` never imports `apb_adapter_pkg`. |
+| FILE-08 | Filelists use paths relative to the filelist and are passed with `-F`. List `+incdir+` entries before the sources that need them. |
+
+---
+
+## 4. Naming
+
+| ID | Element | Convention | Example |
+|---|---|---|---|
+| NAME-01 | Prefix | Every package, class, module, interface, type, macro and file of this UVC starts with `apb_` / `APB_` | `apb_agent`, `APB_MAX_DATA_WIDTH` |
+| NAME-02 | Modules, interfaces, packages, classes, functions, tasks, variables, instances | `lower_snake_case`, nouns for things, verbs for actions | `apb_monitor_proxy`, `do_transfer()` |
+| NAME-03 | Parameters, localparams, enum literals, macros | `UPPER_SNAKE_CASE` | `DATA_WIDTH`, `APB_ST_TIMEOUT` |
+| NAME-04 | APB pins | Exactly as ARM IHI 0024D Table B-1/B-2 (uppercase) | `PSEL`, `PWDATACHK` |
+| NAME-05 | Type suffixes | `_e` enums, `_t` structs and other typedefs, `vif_t` for a class's virtual-interface type | `apb_bfm_status_e`, `apb_features_t` |
+| NAME-06 | Interfaces and packages | `_if` signal interface, `_bfm_if` BFM interfaces, `_pkg` packages | `apb_driver_bfm_if` |
+| NAME-07 | Registered / BFM-driven state | `_q` suffix | `paddr_q` |
+| NAME-08 | Named blocks | generate blocks `g_<what>`; constraints `c_<what>`; covergroups `cg`, coverpoints `cp_<what>`, crosses `x_<a>_<b>` | `g_bad_data_width`, `c_fit_bus` |
+| NAME-09 | UVM classes | role suffix: `_agent`, `_driver`, `_monitor`, `_sequencer`, `_cfg`, `_seq`, `_test`, `_env`, `_scoreboard`, `_coverage`, `_proxy`, `_proxy_base` | `apb_random_seq` |
+| NAME-10 | Report IDs | `APB_<AREA>` in uppercase, one area per component/purpose | `APB_DRV`, `APB_PROTOCOL` |
+| NAME-11 | Handles to capabilities | `drive`, `observe` (cfg), `vif` (adapters only) | `cfg.observe` |
+| NAME-12 | Avoid | Single-letter names except loop indices and short-lived locals in tests; names of SystemVerilog keywords or system functions (`random`, `time`, `bit` as identifiers); names that differ only in case | — |
+
+---
+
+## 5. Formatting
+
+| ID | Rule |
+|---|---|
+| FMT-01 | Indent 2 spaces; no tabs; no trailing whitespace; files end with a newline. |
+| FMT-02 | Lines ≤ 100 columns. Break long argument lists after a comma and align continuation lines with the opening parenthesis or indent them 2 levels. Split long messages into a format string and arguments. |
+| FMT-03 | One statement per line, including `do`/`while` bodies. One declaration per line, except closely related variables of one type. Inline constraint blocks (`randomize() with { … }`) may list several short constraints per line within the column limit. |
+| FMT-04 | Use `begin`/`end` for every multi-statement body. A single-statement `if`/`for` body may omit them only when it fits on the next line and has no `else` ambiguity. |
+| FMT-05 | Label closing keywords of design elements and classes: `endmodule : apb_hdl_top`, `endclass : apb_agent`, `endinterface : apb_if`, `endpackage : apb_api_pkg`. |
+| FMT-06 | Align declaration groups and port lists in columns when it improves reading. One port per line in port lists and one connection per line in instantiations; connect by name (`.PADDR (bus_a.PADDR)`), never by position. |
+| FMT-07 | Comments explain *why* and cite the rule they implement (`// APB-R04`, `// RST-3`, `// IHI 0024D 3.2`, `// ADR-001 decision 4`). Do not narrate what the code says. No commented-out code. |
+| FMT-08 | No `TODO` without an owner-visible entry: put open work in `WORK_STATUS.md` *Known gaps*, and reference it from the comment if needed. |
+
+---
+
+## 6. HDL: interfaces, BFMs and example DUT
+
+| ID | Rule |
+|---|---|
+| HDL-01 | `apb_if` owns pins and modports only; protocol timing lives in the BFMs (ADR-002 decision 3). |
+| HDL-02 | BFMs connect to `apb_if` through **ordinary signal ports** wired by name in the HDL top; no interface-typed ports on BFM interfaces (ADR-002 decision 7). |
+| HDL-03 | No UVM, no classes and no class handles inside HDL. BFMs exchange plain values and packed structs with the HVL side (ADR-002 §6). Shared types live in `apb_bfm_pkg` (types and pure functions only). |
+| HDL-04 | Sequential logic uses `always_ff` with nonblocking assignments; combinational logic uses `always_comb` or `assign`. No latches; no mixed blocking/nonblocking assignments to one variable. |
+| HDL-05 | BFM tasks drive outputs with NBAs, so a Completer sampling the same edge sees the previous value. They sample inputs through a clocking block with `default input #1step`. |
+| HDL-06 | A driver BFM releases every output to `'z` when not enabled, so a passive instance cannot contend; signal nets are resolved (`wire logic`). |
+| HDL-07 | Parameter legality is checked at elaboration with a named generate block containing `$error` (`if (…) begin : g_bad_… $error(…); end`). |
+| HDL-08 | Protocol checks in the monitor BFM count by `apb_mon_error_e` and cite the APB rule they enforce. A new check needs a new enum value, a fault mode or test that triggers it, and a contract reference. |
+| HDL-09 | Reset: assertion handled immediately, deassertion at a sampled PCLK edge (RST-1..RST-7). Every new timed task has a defined reset behaviour. |
+
+---
+
+## 7. HVL and UVM
+
+| ID | Rule |
+|---|---|
+| UVM-01 | Core UVM classes (agent, driver, monitor, sequencer, cfg, coverage, sequences) are **not parameterized by AW/DW** (ADR-001 decision 3). Width specialization exists only in `hvl/adapter/`. |
+| UVM-02 | Components use `` `uvm_component_utils ``; objects and sequences use `` `uvm_object_utils ``; create them with `type_id::create`. Exception: width-specialized adapters are built explicitly with `new(name, vif)` by integration code (ADR-001 decision 5). |
+| UVM-03 | No `` `uvm_field_* `` macros. Implement `do_copy`, `do_compare` and `convert2string` by hand; compare 4-state fields with `===`. |
+| UVM-04 | Constructors: components `new(string name, uvm_component parent)`; objects `new(string name = "<class>")`. Constructors only initialize; no phase work. |
+| UVM-05 | Phase use: build — get the cfg, create children, check handles; connect — TLM connections; start_of_simulation — push configuration to BFMs; run — behaviour; check — end-of-test checks; report — summaries. |
+| UVM-06 | One `apb_agent_cfg` per instance, registered **once** by integration code at the exact agent path, retrieved **once** by the agent, and passed to children as a handle. No other `uvm_config_db` lookups in the core; no global or static configuration (ADR-002 configuration flow). |
+| UVM-07 | Drivers hold only `apb_drive_proxy_base`, monitors only `apb_monitor_proxy_base`. No core class names a virtual interface type (ADR-001/002). |
+| UVM-08 | Validate configuration before use (`apb_agent_cfg::validate()`); illegal configuration is `uvm_fatal`. Every new configuration field gets a legality rule and a case in `apb_cfg_negative_test`. |
+| UVM-09 | HVL reporting only through `` `uvm_info `` / `` `uvm_warning `` / `` `uvm_error `` / `` `uvm_fatal `` with an `APB_*` ID. Verbosity: `UVM_LOW` summaries, `UVM_MEDIUM` notable events, `UVM_HIGH` per-transfer traces. `$display` is for HDL code only (BFM messages, the HDL-only smoke test) and for a UVM test's single final result line. |
+| UVM-10 | Objections are raised and dropped only in tests. Sequences never touch objections or `starting_phase`. |
+| UVM-11 | Sequences call `start_item()`, then randomize, then `finish_item()`. Inline constraints refer to sequence variables with `local::`. Items get their bus context from `apb_base_seq::new_item()`. |
+| UVM-12 | No time-consuming statements (`#`, `@`, `wait`) in core UVM components; all timing goes through the proxies to the BFMs. Tests may use delays for drain or settling. |
+| UVM-13 | Severity overrides and report catchers are used only in tests that expect errors (negative tests), scoped to the component or ID they expect. |
+| UVM-14 | Use only APIs present in both UVM 1.2 and IEEE 1800.2: no deprecated APIs (for example `uvm_top` globals, `starting_phase`, `set_config_*`). |
+
+---
+
+## 8. Transactions and data
+
+| ID | Rule |
+|---|---|
+| DATA-01 | One `apb_transaction` for every width. Payload fields use the compile-time maxima `APB_MAX_*` (`apb_defines.svh`). |
+| DATA-02 | **No silent narrowing.** Bits at or above the bound bus width must be known zeros; the drive adapter rejects the request (`APB_ST_BAD_REQUEST`) and reports why. Observed values are zero-extended, never sign-extended. |
+| DATA-03 | Bus context (widths, present features) is copied from `apb_agent_cfg` before randomization; constraints keep generated values legal for that bus. Constraints a negative test may switch off are named (`c_fit_bus`, `c_aligned`, `c_strb`). |
+| DATA-04 | One status encoding (`apb_bfm_pkg::apb_bfm_status_e`) is shared by BFM, adapter, driver and sequences; do not add parallel encodings. |
+| DATA-05 | Absent features (IHI 0024D Table B-1) are configuration, not code variants: absent Requester outputs are driven to 0, absent Completer inputs take the spec default, and requests that need an absent feature are rejected. |
+
+---
+
+## 9. Verification of a change (before commit)
+
+| ID | Rule |
+|---|---|
+| VER-01 | Static self-review of every changed file against this document and the relevant contract rules. Check every call against the callee's signature (argument order, widths, directions). |
+| VER-02 | Run only approved tools with approved commands (NN-02). Record each run in `docs/dv-architecture/evidence/<task>/` with command, tool version, SHA, clean/dirty tree and the log, with machine-local paths replaced (`<UVM>`, `<out>`). |
+| VER-03 | A behaviour change comes with a test that would fail without it. A new check comes with a negative test proving it fires (fault mode, mutant or illegal configuration). |
+| VER-04 | Re-run the approved checks that cover the changed files after any edit, including formatting-only edits, when the owner has approved such checks. Otherwise mark the change NOT RUN. |
+
+---
+
+## 10. Documentation, traceability and handoff
+
+| ID | Rule |
+|---|---|
+| DOC-01 | Every change updates, in the same push: `WORK_STATUS.md` (manifest, validation table, known gaps, handoff block), `REVIEW_FEEDBACK.md` (new or changed risks), and the contract/README sections whose behaviour changed. |
+| DOC-02 | Every owner decision is added to `DECISION_LOG.md` the moment it is made, with date, wording and where it is applied. |
+| DOC-03 | Before context or tokens run low, write the handoff block in `WORK_STATUS.md` first: another model must be able to resume from Git and Markdown alone. |
+| DOC-04 | Docs state facts with evidence; plans and proposals are labelled PROPOSED; unexecuted stages are NOT RUN. |
+
+---
+
+## 11. File header template
+
+```systemverilog
+// -----------------------------------------------------------------------------
+// <element_name> — <one-line purpose>
+//
+// <What it owns and what it deliberately does not do.>
+// <Spec / contract / ADR references: APB-Rxx, RST-x, CFG-xx, IHI 0024D §x,
+//  ADR-001 decision n.>
+// <Known limits or milestone scope, e.g. "APB5 PWAKEUP is milestone M2".>
+// Included by <package>   |   Compile after <dependencies>
+// -----------------------------------------------------------------------------
+`timescale 1ns/1ps        // only in files compiled on their own (LANG-10)
+```
+
+---
+
+## 12. Git and review
+
+| ID | Rule |
+|---|---|
+| GIT-01 | One feature branch per task, from `dev`: `feature/<task-id>-<short-kebab-description>` (for example `feature/apb-001-protocol-contract`). Bring `dev` in with a merge commit when asked; never rebase, amend or force-push shared history. |
+| GIT-02 | Conventional Commits: `<type>(apb-uvc): <imperative subject ≤ 72 chars>`; types used here are `feat`, `fix`, `refactor`, `style` (formatting only), `test`, `docs`, `build`. The body says what changed and why, and what was or was not run. Footer `Refs: <task/risk IDs>` plus the attribution trailers. |
+| GIT-03 | One logical change per commit. Sources and the docs that describe them may be separate commits within the same push. |
+| GIT-04 | A commit message must match the commit content. Check `git show --stat` before pushing. If a pushed message is wrong, add a follow-up commit that says what it completes or corrects; never rewrite pushed history. |
+| GIT-05 | Never commit build outputs, generated bundles or downloaded third-party code (UVM stays outside the repository). Evidence logs go under `docs/dv-architecture/evidence/` only. |
+| GIT-06 | No merges into `dev` or `main` and no pull requests without the owner's request. |
+
+---
+
+## 13. Pre-commit checklist (copy into the session and tick)
+
+```text
+[ ] NN-01 no tool names, tool ifdefs, pragmas or tool-motivated rewrites (grep -rin "verilator\|vcs\|xcelium\|questa\|pragma\|lint_off")
+[ ] NN-02 no tool run or option without owner approval; NOT RUN recorded otherwise
+[ ] NN-04 nothing outside poc/apb_uvc/ and docs/ changed; legacy apb_*.sv untouched
+[ ] LANG  widths explicit, 4-state kept, no full-width shifts, no static initializers in procedural code
+[ ] FILE  header present, file name = element name, timescale rule, manifest updated
+[ ] NAME  apb_ prefix, suffixes (_e/_t/_q/_seq/...), report IDs APB_*
+[ ] FMT   2-space indent, <= 100 columns, one statement per line, labelled end keywords
+          (awk 'length > 100' $(git diff --name-only -- '*.sv' '*.svh'))
+[ ] HDL/UVM rules for the layer touched (sections 6-8)
+[ ] VER   self-review done; approved checks re-run or NOT RUN recorded; negative test for new checks
+[ ] DOC   WORK_STATUS, REVIEW_FEEDBACK, contract/README, DECISION_LOG updated
+[ ] GIT   branch, Conventional Commit, message matches content (git show --stat)
+```
+
+---
+
+## 14. Conformance of the existing sources (audit 2026-10-29)
+
+Text-only audit of the 33 SV files at `45a763f`. After the fixes, the approved T1 slang commands were re-run as a regression check: project code still 0 errors, 0 warnings (UVM-library diagnostics unchanged, RISK-012).
+
+| Rule | Finding | Action |
+|---|---|---|
+| FILE-04 header | All 33 files have a header block | conforming |
+| FMT-01 | No tabs, no trailing whitespace | conforming |
+| LANG-10 | Compilation-unit files carry `timescale`; package-included files do not | conforming |
+| FMT-02 ≤ 100 columns | 24 lines over 100 columns (max 124) in 6 files | reflowed in the same push as these guidelines; no logic change |
+| FMT-03 one statement per line | `apb_cfg_negative_test::run_phase` had several statements per line; `apb_driver_bfm_if::wait_for_reset_release` had a one-line `do … while` | restructured in the same push |
+| FMT-05 labelled ends | `endgroup` in `apb_coverage.sv` and `endclass` in `apb_hdl_smoke.sv` were unlabelled | labelled in the same push |
+| FMT-06 one connection per line | `examples/apb_hdl_top.sv` had two named connections per line (96 lines) | reformatted in the same push; the ordered list of port/signal pairs was checked to be identical before and after |
+| FILE-03 | Class files included into packages use `.sv`, as fixed by `DIRECTORY_ARCHITECTURE.md` | conforming to the approved plan; renaming them to `.svh` would need an owner decision |

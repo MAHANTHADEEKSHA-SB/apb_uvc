@@ -7,14 +7,16 @@ The existing root-level `apb_*.sv` files are an older APB UVC implementation. Th
 ## Read in order
 
 1. [AGENTS.md](AGENTS.md): what every model/engineer must read and how to hand off.
-2. [ARCHITECTURE_CONTRACT.md](ARCHITECTURE_CONTRACT.md): APB-only agreed architectural rules and unresolved decisions.
-3. [ADR-001](ADR-001-HVL-PROXY-PLACEMENT.md): HVL concrete proxies over parameterized BFM virtual handles.
-4. [ADR-002](ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md): two separate abstract capabilities and two BFMs sharing one signal interface.
-5. [DIRECTORY_ARCHITECTURE.md](DIRECTORY_ARCHITECTURE.md): self-contained APB UVC distribution and example directory.
-6. [CLAUDE_GENERATION_PROMPT.md](CLAUDE_GENERATION_PROMPT.md): single-APB implementation brief.
-7. [WORK_STATUS.md](WORK_STATUS.md): real completed/pending work, latest checkpoint and evidence.
-8. [REVIEW_FEEDBACK.md](REVIEW_FEEDBACK.md): ChatGPT/Gemini independent review findings and required retests.
-9. [APB_PROTOCOL_CONTRACT.md](APB_PROTOCOL_CONTRACT.md): APB-001 revision/feature matrix, pin list, transfer rules, reset assumptions and transaction format traced to ARM IHI 0024D.
+2. [DECISION_LOG.md](DECISION_LOG.md): every owner decision, dated, with where it is applied; overrides the documents below.
+3. [CODING_GUIDELINES.md](CODING_GUIDELINES.md): **mandatory** SystemVerilog/UVM coding standard, Git rules and pre-commit checklist.
+4. [ARCHITECTURE_CONTRACT.md](ARCHITECTURE_CONTRACT.md): APB-only agreed architectural rules and unresolved decisions.
+5. [ADR-001](ADR-001-HVL-PROXY-PLACEMENT.md): HVL concrete proxies over parameterized BFM virtual handles.
+6. [ADR-002](ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md): two separate abstract capabilities and two BFMs sharing one signal interface.
+7. [DIRECTORY_ARCHITECTURE.md](DIRECTORY_ARCHITECTURE.md): self-contained APB UVC distribution and example directory.
+8. [CLAUDE_GENERATION_PROMPT.md](CLAUDE_GENERATION_PROMPT.md): single-APB implementation brief.
+9. [WORK_STATUS.md](WORK_STATUS.md): real completed/pending work, latest checkpoint and evidence.
+10. [REVIEW_FEEDBACK.md](REVIEW_FEEDBACK.md): ChatGPT/Gemini independent review findings and required retests.
+11. [APB_PROTOCOL_CONTRACT.md](APB_PROTOCOL_CONTRACT.md): APB-001 revision/feature matrix, pin list, transfer rules, reset assumptions and transaction format traced to ARM IHI 0024D.
 
 ## Deliverable boundary
 

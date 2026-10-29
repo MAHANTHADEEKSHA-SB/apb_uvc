@@ -126,7 +126,7 @@
 - **Status:** OPEN until the UVM run is clean (RISK-012) and the UVM tests have run on a simulator.
 
 ### RISK-012 — UVM 1.2 has no `timescale; mixing is an error under slang
-- **Status:** OPEN; owner decision T5 pending (`WORK_STATUS.md`).
+- **Status:** OPEN; T5 not approved — the owner paused open-source compilation and will check runs manually (`DECISION_LOG.md` D-010).
 - slang 12.1.0 reports `MissingTimeScale` at `<UVM>/src/uvm_pkg.sv:28` ("design element does not have a time scale defined but others in the design do"). UVM 1.2 deliberately ships without a time scale; every project file declares `` `timescale 1ns/1ps ``.
 - **Classification:** library / language rule, not a project source bug. Not worked around in the sources: no edits to UVM, no removal of project time scales, no shim file.
 - **Proposed resolution:** owner approval to add slang's `--timescale 1ns/1ps` (default for design elements without one; the counterpart of every simulator's `-timescale` compile option). Commercial-simulator flows (T4) will need the same decision for their own option.

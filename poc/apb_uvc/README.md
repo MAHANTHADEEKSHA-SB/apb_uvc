@@ -4,7 +4,7 @@ One reusable APB Requester (master) UVC. Two instances of the same source — **
 
 **Status:** milestone M1 sources for HDL, HVL API, adapters, UVM agent, HVL top and tests are written as **portable IEEE 1800-2017 SystemVerilog/UVM with no tool-specific code paths**. **Nothing has been compiled or simulated yet** (toolchain approval pending — see `../../docs/dv-architecture/WORK_STATUS.md`, which also lists the known gaps).
 
-Governing documents: `../../docs/dv-architecture/` — `APB_PROTOCOL_CONTRACT.md` (pins, rules, reset, transaction), `ARCHITECTURE_CONTRACT.md`, ADR-001, ADR-002, `WORK_STATUS.md`.
+Governing documents: `../../docs/dv-architecture/` — `DECISION_LOG.md` (owner decisions), `CODING_GUIDELINES.md` (mandatory coding standard), `APB_PROTOCOL_CONTRACT.md` (pins, rules, reset, transaction), `ARCHITECTURE_CONTRACT.md`, ADR-001, ADR-002, `WORK_STATUS.md`.
 
 ## Supported protocol
 

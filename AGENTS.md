@@ -2,8 +2,8 @@
 
 This repository currently contains an existing flat-layout APB UVC. Do **not** move, replace, or refactor those files as part of the new architecture experiment.
 
-For the **single APB UVC proof of concept** under `poc/apb_uvc/`, read [docs/dv-architecture/AGENTS.md](docs/dv-architecture/AGENTS.md) and its architecture contract, ADRs, directory plan, `WORK_STATUS.md`, and `REVIEW_FEEDBACK.md`.
+For the **single APB UVC proof of concept** under `poc/apb_uvc/`, read [docs/dv-architecture/AGENTS.md](docs/dv-architecture/AGENTS.md) and its architecture contract, ADRs, directory plan, `WORK_STATUS.md`, and `REVIEW_FEEDBACK.md`. Owner decisions are in [docs/dv-architecture/DECISION_LOG.md](docs/dv-architecture/DECISION_LOG.md); every code change must follow [docs/dv-architecture/CODING_GUIDELINES.md](docs/dv-architecture/CODING_GUIDELINES.md) (mandatory).
 
 The experimental APB UVC is self-contained: **one** signal interface, **two** separate BFM interfaces (driver/monitor), separate abstract/concrete HVL proxies, UVM components and filelists. DW=32 and DW=16 are **instances of the same UVC** (DW=64 only as an opt-in non-standard extension; ADR-001 Amendment A1), not other protocol UVCs.
 
-Do not claim compilation or simulation passed without actual commands/logs. Do not modify the source outside `poc/apb_uvc/` unless separately approved. No force pushes or direct merges into `dev` or `main`.
+Do not run any simulator, compiler, elaborator or lint tool, or add a tool option, without explicit owner approval; no tool-specific workarounds. Do not claim compilation or simulation passed without actual commands/logs. Do not modify the source outside `poc/apb_uvc/` unless separately approved. No force pushes or direct merges into `dev` or `main`.

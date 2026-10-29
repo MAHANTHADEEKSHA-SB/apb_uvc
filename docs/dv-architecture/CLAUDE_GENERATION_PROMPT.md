@@ -6,7 +6,7 @@
 
 ## Before generating code
 
-1. Read `docs/dv-architecture/AGENTS.md`, contract, both ADRs, directory plan, status and feedback.
+1. Read `docs/dv-architecture/AGENTS.md`, `DECISION_LOG.md`, `CODING_GUIDELINES.md` (mandatory for all code), contract, both ADRs, directory plan, protocol contract, status and feedback.
 2. Inspect actual `git status --short`, branch, `git rev-parse HEAD`, and file inventory. Do not invent repository state.
 3. Check whether `poc/apb_uvc/` exists; if not, create it incrementally. **Do not edit/move the old root-level `apb_*.sv` files**.
 4. Report unresolved APB revision, pin list, reset semantics, transaction format and target simulator. Propose defaults for review, and identify any assumptions. Do not label them specification requirements without a source.

@@ -8,7 +8,7 @@
 **Phase:** M1 sources for steps 2–6 **written** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM. Approved slang (T1) + UVM 1.2 (T3): **HDL elaborates clean; the full UVM POC elaborates with 0 errors/0 warnings in project code**, but the run fails on one error inside the UVM library (`MissingTimeScale`), pending owner decision T5. Nothing simulated.
 **Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** owner decision **T5** (add `--timescale 1ns/1ps` to the T1 UVM command), then re-run the UVM elaboration; after that, write the missing passive/reset/APB3 tests.
+**Active task:** coding standard in place (`CODING_GUIDELINES.md`, `DECISION_LOG.md`). Next: the missing passive/reset/APB3 tests (*Known gaps*), written to the guidelines; the owner checks runs manually at the agreed point (D-010).
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
@@ -16,10 +16,11 @@
 ## Resume here (new session, other model or engineer)
 
 1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file.
-2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
-3. **Owner rules in force:**
-   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options**. Approved so far (2026-10-29): **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2`. Nothing else (T5 pending).
-   - **No tool-specific workarounds:** no `` `ifdef <TOOL> ``, tool pragmas or tool-motivated rewrites. Log tool shortfalls in `REVIEW_FEEDBACK.md` instead.
+2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
+3. **Owner rules in force** (full list and sources in `DECISION_LOG.md`):
+   - **Every code change follows `CODING_GUIDELINES.md`** and its §13 checklist is ticked before commit (D-011, D-012).
+   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options** (D-006). Approved: **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2` (D-008, D-009). **T5 not approved; open-source compilation is paused, the owner checks runs manually** (D-010).
+   - **No tool-specific workarounds:** no `` `ifdef <TOOL> ``, tool pragmas or tool-motivated rewrites (D-005). Log tool shortfalls in `REVIEW_FEEDBACK.md` instead.
    - Width pair **DW=32 + DW=16**; DW=64 only behind `APB_ENABLE_DW64_EXTENSION` / `ALLOW_NONSTANDARD_DW` / `allow_nonstandard_width`, never reported as compliant.
    - Revisions APB2–APB5 are per-instance configuration; default APB4 with `PSTRB` and `PPROT`.
    - Do not touch the root-level legacy `apb_*.sv` files. No force-push, no merge into `dev`/`main`.
@@ -158,7 +159,7 @@ Current sources: everything **elaborated** on approved slang (below); **nothing 
 
 ## Toolchain approval request
 
-**Owner decision 2026-10-29: T1 and T3 approved, UVM version 1.2, source `github.com/gchinna/uvm-1.2` (owner-named).** T2 withdrawn; T4 is an owner-run option; **T5 pending**. Nothing outside these items may run (contract gate; approval for one item does not cover another). No tool-specific source changes and no extra tool flags without approval. Commands are from the repository root.
+**Owner decision 2026-10-29: T1 and T3 approved, UVM version 1.2, source `github.com/gchinna/uvm-1.2` (owner-named).** T2 withdrawn; T4 is an owner-run option; **T5 not approved** (D-010: open-source compilation paused). Nothing outside these items may run (contract gate; approval for one item does not cover another). No tool-specific source changes and no extra tool flags without approval. Commands are from the repository root.
 
 | # | Tool / version | Scope | Exact commands |
 |---|---|---|---|
@@ -166,7 +167,7 @@ Current sources: everything **elaborated** on approved slang (below); **nothing 
 | T2 | ~~Verilator 5.020~~ | **Withdrawn:** cannot build the portable sources (RISK-001/009); workarounds not allowed | — |
 | T3 | UVM **1.2** source — **APPROVED**, owner-named mirror | Download only, for T1 elaboration; not a simulator | `git clone https://github.com/gchinna/uvm-1.2.git /opt/tools/uvm-1.2-gchinna` (checked: commit `a3cb911`; release notes `UVM_1_2_RELEASE-1-gd6e87e2`; only extra file `src/tags`; see `evidence/APB-004/README.md`). Accellera's own host is blocked by the network policy, so no byte-compare with the official tarball |
 | T4 | Commercial simulator on EDA Playground (owner picks Questa/Xcelium/VCS/…, with its UVM 1.2 or 1800.2 library) | Owner-run: HDL smoke and the UVM tests in *Tests available*, 4-state checks (RISK-009) | HDL bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_hdl_smoke.f apb_hdl_smoke_bundle.sv` (top `apb_hdl_smoke`). UVM bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_poc.f apb_poc_bundle.sv` (tops `apb_hdl_top apb_hvl_top`, run option `+UVM_TESTNAME=<test>`). The bundle step is plain text processing; record each result here |
-| T5 | slang option `--timescale 1ns/1ps` — **PENDING owner decision** | Default time scale for design elements that declare none — only UVM 1.2's `uvm_pkg` here; project files keep their own `` `timescale 1ns/1ps ``. Counterpart of the `-timescale` compile option of every simulator; no source change | the T1 UVM command with `--timescale 1ns/1ps` added. Without it the UVM run fails on `MissingTimeScale` inside `uvm_pkg.sv` |
+| T5 | slang option `--timescale 1ns/1ps` — **NOT APPROVED** (D-010) | Default time scale for design elements that declare none — only UVM 1.2's `uvm_pkg` here; project files keep their own `` `timescale 1ns/1ps ``. Counterpart of the `-timescale` compile option of every simulator; no source change | the T1 UVM command with `--timescale 1ns/1ps` added. Without it the UVM run fails on `MissingTimeScale` inside `uvm_pkg.sv` |
 
 ## AI handoff template (fill every session)
 
@@ -193,15 +194,15 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 ```text
 HANDOFF FROM: Claude (Claude Code session)
 REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-001-protocol-contract
-EXACT COMMIT SHA: approved runs at 386e64d5130748329f8148507837819e7d9f6456; evidence in fae5f10; this checkpoint is the docs commit on top (`git log -1`)
+EXACT COMMIT SHA: branch HEAD (`git log -1`); last approved tool runs at 386e64d (evidence/APB-004/); formatting regression re-run before the style commit of this push
 GIT STATUS (including uncommitted files): clean after commit
-CURRENT TASK ID: APB-004 UVM elaboration done except the UVM-library timescale error; waiting for owner decision T5
-FILES CREATED/CHANGED (this session): poc/apb_uvc/hvl/adapter/apb_drive_proxy.sv (lossless check without full-width shifts), poc/apb_uvc/scripts/slang_elab.py (reports slang's error/warning counts); docs: evidence/APB-004/**, WORK_STATUS.md, REVIEW_FEEDBACK.md
-PROVEN WORKING (with log/command): slang 12.1.0 + UVM 1.2 (T1+T3) at 386e64d: HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64: project code 0 errors 0 warnings (evidence/APB-004/)
-FAILED CHECKS (with log/command): UVM POC elaboration std/DW=64 exit 1: MissingTimeScale in <UVM>/src/uvm_pkg.sv:28 (library has no `timescale, project files do); fix needs T5. T3 Accellera download blocked earlier (403 connect_rejected); replaced by the owner-named mirror
-NOT YET RUN: every simulation (see Validation evidence); clean UVM elaboration (needs T5)
+CURRENT TASK ID: coding standard established (CODING_GUIDELINES.md, DECISION_LOG.md); sources brought into conformance; next = missing tests (Known gaps)
+FILES CREATED/CHANGED (this session): docs/dv-architecture/CODING_GUIDELINES.md (new), DECISION_LOG.md (new); formatting-only conformance edits in 11 SV files (examples/apb_hdl_top.sv one connection per line, 24 lines > 100 cols reflowed, labelled endgroup/endclass, one statement per line in the driver BFM guards, fake proxies and apb_cfg_negative_test); read order in AGENTS.md (root + dv-architecture), CLAUDE_GENERATION_PROMPT.md, dv-architecture README, poc README, this file
+PROVEN WORKING (with log/command): approved T1 commands re-run on the reformatted tree: HDL std/DW=64 errors=0 warnings=0; UVM std/DW=64 project code 0 diagnostics (only the known UVM-library RISK-012 diagnostics). Connection list of apb_hdl_top verified identical before/after (238 pairs). Earlier evidence: evidence/APB-004/ at 386e64d
+FAILED CHECKS (with log/command): UVM POC elaboration exits 1 on MissingTimeScale inside UVM 1.2 (RISK-012); not pursued (D-010)
+NOT YET RUN: every simulation (owner will run manually); clean UVM elaboration (T5 not approved)
 UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
 OPEN REVIEW FINDING IDS: RISK-001..012
-ARCHITECTURE CONTRACT/ADR AMENDED?: no change this session (contract v0.10, ADR-001 A1)
-NEXT EXACT COMMAND/SMALLEST TASK: if the owner approves T5: run the T1 UVM command with `--timescale 1ns/1ps` (std and DW=64), record in evidence/APB-004/, fix SOURCE bugs only. Otherwise keep the UVM row as FAIL (library). Then write the missing passive/reset/APB3 tests (Known gaps). Simulation needs T4 (owner on EDA Playground) or another approved simulator
+ARCHITECTURE CONTRACT/ADR AMENDED?: no (contract v0.10, ADR-001 A1); new governing docs CODING_GUIDELINES.md and DECISION_LOG.md
+NEXT EXACT COMMAND/SMALLEST TASK: read DECISION_LOG.md and CODING_GUIDELINES.md; then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with RST-4 event, APB3 integration via an HDL top variant), each to the guidelines, with NOT RUN recorded; no tool runs beyond the approved T1 commands
 ```
