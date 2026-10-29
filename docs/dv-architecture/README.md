@@ -1,6 +1,6 @@
 # Single APB UVC — architecture and AI handoff
 
-This folder governs **one reusable APB UVC POC**, developed at `poc/apb_uvc/`. The *same* APB UVC will be instantiated with 32-bit and 64-bit data buses to test parameter independence. We are **not building a multi-UVC framework** or generating AHB/AXI/UCIe components at this stage.
+This folder governs **one reusable APB UVC POC**, developed at `poc/apb_uvc/`. The *same* APB UVC will be instantiated with 32-bit and 16-bit data buses (DW=64 only as an opt-in non-standard extension) to test parameter independence. We are **not building a multi-UVC framework** or generating AHB/AXI/UCIe components at this stage.
 
 The existing root-level `apb_*.sv` files are an older APB UVC implementation. They remain unchanged unless a separate migration is approved.
 

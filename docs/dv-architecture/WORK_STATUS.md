@@ -15,7 +15,7 @@
 
 ## Approved scope
 
-Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own** signal interface, driver BFM, monitor BFM, APB-specific abstract/proxy classes, UVM agent, sequences, coverage, filelists, integration example and tests. Two simultaneous 32/64-bit instances demonstrate parameter independence. The existing root-level flat APB UVC is preserved. No other protocol UVC or multi-UVC TB is part of this POC.
+Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own** signal interface, driver BFM, monitor BFM, APB-specific abstract/proxy classes, UVM agent, sequences, coverage, filelists, integration example and tests. Two simultaneous 32/16-bit instances demonstrate parameter independence (ADR-001 Amendment A1; DW=64 only as an opt-in non-standard extension). The existing root-level flat APB UVC is preserved. No other protocol UVC or multi-UVC TB is part of this POC.
 
 ## Decision/progress inventory
 
@@ -28,7 +28,7 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 | IMP-001 | POC APB interface and BFMs | NOT_STARTED | No new sources in `poc/apb_uvc/` evidenced |
 | IMP-002 | Proxy base and concrete adapters | NOT_STARTED | No compile evidence |
 | IMP-003 | Non-parameterized UVM APB components | NOT_STARTED | No compile evidence |
-| IMP-004 | Single APB UVC 32/64 dual-instance test | NOT_STARTED | No simulation evidence |
+| IMP-004 | Single APB UVC 32/16 dual-instance test | NOT_STARTED | No simulation evidence |
 | IMP-005 | Negative tests, independent reviews | NOT_STARTED | No execution or review results |
 
 ## Planned source manifest (not yet generated)
@@ -52,11 +52,11 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 
 ## Next tasks — in priority order
 
-- [~] **APB-001 — Review protocol contract:** Select APB revision, optional pins, reset details, supported address/data widths, and 4-state transport semantics. Produce a testable signal table and acceptance matrix. → Drafted in `APB_PROTOCOL_CONTRACT.md`; **blocked on owner answers Q1 (DW=64 vs IHI 8/16/32), Q3 (simulator), Q5 (reset assumptions)**.
+- [~] **APB-001 — Review protocol contract:** Select APB revision, optional pins, reset details, supported address/data widths, and 4-state transport semantics. Produce a testable signal table and acceptance matrix. → Drafted in `APB_PROTOCOL_CONTRACT.md`; Q1 decided (ADR-001 A1), Q3 decided (EDA Playground as owner option), Q2/Q4/Q5 proceeding on proposed defaults.
 - [ ] **APB-002 — Review BFM connection legality:** Diagram ordinary signal-port wiring of two BFM interfaces to one `apb_if` instance; specify driver/monitor clocking and monitor-to-HVL return path. Note simulator/version.
 - [ ] **APB-003 — Generate minimal HDL + compile:** `apb_if.sv`, two BFMs, example HDL top and HDL filelist. Save exact command/log and fix language restrictions.
 - [ ] **APB-004 — Generate HVL types/proxies/agent + compile:** Update manifest and run a targeted smoke.
-- [ ] **APB-005 — Run APB POC:** 32-bit and 64-bit instances concurrently, read/write, waits, passive observation, reset and error where applicable, negative tests.
+- [ ] **APB-005 — Run APB POC:** 32-bit and 16-bit instances concurrently, read/write, waits, passive observation, reset and error where applicable, negative tests.
 - [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit, record findings and rerun failing tests.
 
 ## Toolchain (this container, 2026-10-29)
@@ -76,7 +76,7 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 | APB SV syntax/style | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | APB HDL compile | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | APB UVM compile/elaboration | UNKNOWN | NOT RUN | NOT RUN | — | — |
-| APB 32/64 simulation | UNKNOWN | NOT RUN | NOT RUN | — | — |
+| APB 32/16 simulation | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | Passive-mode + fault injection | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | Emulation | UNKNOWN | NOT RUN | NOT RUN | — | — |
 

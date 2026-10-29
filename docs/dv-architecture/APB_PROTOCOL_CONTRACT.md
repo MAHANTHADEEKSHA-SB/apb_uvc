@@ -93,7 +93,7 @@ Present only on APB5 with `Check_Type = Odd_Parity_Byte_All` ([IHI §5.2]; Check
 | CFG-01 | `has_pprot` or `has_pstrb` with revision APB2/APB3 | [IHI Table B-1] "N" |
 | CFG-02 | `has_pwakeup`, any user width > 0, or `check_type != NONE` with revision < APB5 | [IHI §3.6.1, §3.7.1, §5.2, Table B-3] |
 | CFG-03 | `ADDR_WIDTH` outside 1..32 | [IHI Table 2-1] "PADDR can be up to 32 bits wide" |
-| CFG-04 | `DATA_WIDTH` not in {8, 16, 32} | [IHI §2.1.2] — see open question **Q1** for DW=64 |
+| CFG-04 | `DATA_WIDTH` not in {8, 16, 32}, unless `DATA_WIDTH`=64 with `allow_nonstandard_width`=1 (extension, never reported as compliant) | [IHI §2.1.2]; ADR-001 Amendment A1 |
 | CFG-05 | Configured user width larger than the physical `apb_if` parameter | physical consistency |
 | CFG-06 | Configured widths differ from the bound BFM's parameters (cross-wiring) | ADR-001 §4 |
 
@@ -106,7 +106,7 @@ Exceeding the *recommended* user-signal widths ([IHI Table 2-1]: `PAUSER` ≤ 12
 | Parameter (HDL) | Legal range | Source |
 |---|---|---|
 | `ADDR_WIDTH` | 1..32 | [IHI Table 2-1] |
-| `DATA_WIDTH` | 8, 16, 32 | [IHI §2.1.2]; read and write buses must have the same width |
+| `DATA_WIDTH` | 8, 16, 32; 64 only with `ALLOW_NONSTANDARD_DW`=1 | [IHI §2.1.2]; read and write buses must have the same width. 64 is a non-standard extension (ADR-001 A1) |
 | `USER_REQ_WIDTH`, `USER_DATA_WIDTH`, `USER_RESP_WIDTH` | ≥ 1 physical (presence via cfg; 0 = absent) | [IHI §2.1, §3.7.2] |
 | `NUM_SEL` | ≥ 1, default 1 [ASSUMPTION] | [IHI Table 2-1]: one `PSELx` per Completer |
 
@@ -179,7 +179,7 @@ IHI 0024D only says that `PRESETn` is active-LOW and normally connected to the s
 |---|---|---|
 | `dir` | `apb_dir_e` {`APB_READ`, `APB_WRITE`} | |
 | `addr` | `logic [`APB_MAX_ADDR_WIDTH`-1:0]` | max 32 per [IHI Table 2-1] |
-| `wdata`, `rdata` | `logic [`APB_MAX_DATA_WIDTH`-1:0]` | max 32 per [IHI §2.1.2] (Q1) |
+| `wdata`, `rdata` | `logic [`APB_MAX_DATA_WIDTH`-1:0]` | default 32 per [IHI §2.1.2]; set `+define+APB_MAX_DATA_WIDTH=64` for the extension |
 | `strb` | `logic [`APB_MAX_DATA_WIDTH`/8-1:0]` | |
 | `prot` | `logic [2:0]` | |
 | `auser`, `wuser`, `ruser`, `buser` | `logic [`APB_MAX_*_USER_WIDTH`-1:0]` | default maxima 128 / 32 / 32 / 16, overridable by `+define+` |
@@ -269,8 +269,8 @@ Item 1 can run in this container now. Items 2–3 need a simulator (**Q3**).
 
 | ID | Question | Recommendation |
 |---|---|---|
-| **Q1** | **IHI 0024D allows only DATA_WIDTH 8/16/32** [IHI §2.1.2, Table 2-1], but ADR-001 §3 / acceptance gates require a DW=64 instance. | Amend ADR-001: prove width independence with **DW=32 + DW=16** (spec-legal); optionally keep DW=64 as an explicitly labelled *non-standard extension* behind `cfg.allow_nonstandard_width` / `+define+APB_ALLOW_NONSTANDARD_WIDTH`, never the default |
+| ~~Q1~~ | **Decided 2026-10-29:** DW=32 + DW=16 demonstration pair; DW=64 kept as opt-in non-standard extension (`ALLOW_NONSTANDARD_DW` HDL parameter + `cfg.allow_nonstandard_width`) | ADR-001 Amendment A1 |
 | Q2 | Multi-`PSELx` (`NUM_SEL` > 1) in scope? | Parameter present, default 1; multi-select tests deferred |
-| Q3 | Target simulator / UVM version. In-container options: slang (elaboration only, available) and Verilator ≥ 5.04x built from source (simulation; build needs approval) | Use slang + Verilator here for evidence; record the owner's commercial simulator when known |
+| Q3 | Target simulator / UVM version. **Owner 2026-10-29:** commercial simulators via EDA Playground are an option to run by the owner; no commercial tool in this container | slang (elaboration) + any open-source simulator available here for evidence; keep sources EDA-Playground-friendly |
 | Q4 | Implement parity in M1 or later? | Pins + config in M1; generation/checking in M3 |
 | Q5 | Approve the reset assumptions RST-1..7 and policies POL-01..05 | — |

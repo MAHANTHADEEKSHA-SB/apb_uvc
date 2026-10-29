@@ -1,7 +1,8 @@
 # Architecture contract — single APB UVC POC
 
-**Version:** 0.8 · **Date:** 2026-10-29
-**Change in 0.8:** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`. Accepted ADR-001/ADR-002 text is unchanged.
+**Version:** 0.9 · **Date:** 2026-10-29
+**Change in 0.8:** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`.
+**Change in 0.9:** ADR-001 Amendment A1 (owner-approved) — width pair DW=32 + DW=16; DW=64 kept as a non-standard extension, off by default.
 **Scope:** One reusable **APB UVC** developed under `poc/apb_uvc/`, comprising HDL signal interface, independent drive/monitor BFMs, HVL abstract and concrete proxies, UVM agent, coverage, sequences, filelists and demo. Existing flat-layout APB UVC files at the repository root are **not to be changed** by this milestone.
 
 This contract describes *intended architecture*, not a claim that code has been generated, compiled, simulated or accepted by a simulator. Accepted decisions can change only by a recorded, reviewed ADR amendment. Execution status belongs in `WORK_STATUS.md`.
@@ -16,7 +17,7 @@ This contract describes *intended architecture*, not a claim that code has been 
 
 1. Use **separate abstract APB drive and monitor proxy APIs** whose types do not depend on the APB pin interface's `AW` or `DW`.
 2. Implement concrete HVL proxy classes that specialize on physical bus width and hold correspondingly typed **virtual BFM interface** handles. Do not put concrete UVM class objects inside HDL BFM interfaces.
-3. Core UVM driver, monitor, sequencer and agent are **not parameterized by AW/DW**. Demonstrate by creating two configurations of this *same UVC*: AW=32/DW=32 and AW=32/DW=64.
+3. Core UVM driver, monitor, sequencer and agent are **not parameterized by AW/DW**. Demonstrate by creating two configurations of this *same UVC*: AW=32/DW=32 and AW=32/DW=16 (Amendment A1; DW=64 only as an opt-in non-standard extension).
 4. Boundaries must reject missing handles, wrong bindings, unsupported widths and information loss. Define 4-state data transport before generation; no implicit casting/truncation.
 5. Explicit adapter construction in integration code is preferred for the first POC; factory registration is not a requirement.
 
@@ -36,10 +37,10 @@ This contract describes *intended architecture*, not a claim that code has been 
 
 - First POC acts as an **APB master agent** with passive bus monitor and an independent, small example slave DUT. A reusable subordinate responder/driver is out of scope for milestone 1.
 - **Owner decision 2026-10-29:** one UVC supports APB2, APB3, APB4 and APB5 (ARM IHI 0024D). Revision and optional features are per-instance configuration; unused features stay inactive. Default instance is APB4 with `PSTRB` (`DW/8` bits) and `PPROT`. The revision/feature legality matrix, pin list, reset assumptions and transaction format are defined in [APB_PROTOCOL_CONTRACT.md](APB_PROTOCOL_CONTRACT.md) (PROPOSED).
-- **Open conflict:** IHI 0024D §2.1.2 allows `DATA_WIDTH` 8/16/32 only, while ADR-001 §3 names a DW=64 instance. Resolution pending owner decision (`APB_PROTOCOL_CONTRACT.md` Q1, `REVIEW_FEEDBACK.md` RISK-007); ADR-001 is not changed until then.
+- **Resolved 2026-10-29 (ADR-001 Amendment A1):** IHI 0024D §2.1.2 allows `DATA_WIDTH` 8/16/32 only, so the demonstration pair is DW=32 + DW=16. DW=64 is a non-standard extension, enabled only explicitly and never reported as APB-compliant.
 - Support one APB transfer at a time on each instance. Master drives setup then access, holds mandatory controls/data stable through `PREADY=0` wait states, and finishes only at `PSEL && PENABLE && PREADY`. Observed transaction publication must be aligned to completion.
 - Cover read/write, idle, back-to-back, wait-state, reset, and error behavior where the chosen APB revision permits.
-- Two widths (32/64) are test instances of **one source implementation**, not two protocol UVCs. Monitor transactions must not be silently narrowed.
+- Two widths (32/16) are test instances of **one source implementation**, not two protocol UVCs. Monitor transactions must not be silently narrowed.
 - Reset drive/observation behavior must be documented explicitly; do not guess unspecified rules from a separate DUT/bridge project.
 - One example slave DUT and tests live under `poc/apb_uvc/examples` and `tests`, distinct from reusable UVC core.
 - UVC-local protocol assertions and coverage are allowed. DUT-specific mapping/prediction/scoreboards do **not** belong in this generic APB UVC core.
@@ -63,7 +64,7 @@ This contract describes *intended architecture*, not a claim that code has been 
 ## Build and acceptance gates
 
 1. Manifest and dependency graph are reviewable and consistent with `DIRECTORY_ARCHITECTURE.md`.
-2. Named simulator compiles the **same APB UVC class definitions** for 32-bit and 64-bit APB instances in one test.
+2. Named simulator compiles the **same APB UVC class definitions** for 32-bit and 16-bit APB instances in one test (64-bit only as the optional extension).
 3. Driver and monitor BFMs share each instance's single signal interface; no conflicting drivers, cross-wiring or invalid virtual interface types.
 4. APB setup/access/wait-state behavior and monitor completion sampling pass directed tests; include intentional error/fault injection expected to fail.
 5. Passive agent works as observer; tool-specific build variant may be demonstrated separately.
@@ -73,8 +74,7 @@ This contract describes *intended architecture*, not a claim that code has been 
 ## Unresolved before code generation
 
 - APB revision and concrete signal set; reset polarity and semantics — **proposed** in `APB_PROTOCOL_CONTRACT.md`, awaiting review.
-- DW=64 versus the IHI 0024D 8/16/32 data-width limit (RISK-007).
-- Exact lossless transaction representation, constraints and 4-state policy for DW=32 and 64.
+- Exact lossless transaction representation, constraints and 4-state policy for DW=32 and 16 (and the DW=64 extension).
 - Detailed port direction/clocking rules; monitor BFM → HVL observation task design.
 - Simulator and UVM version; compilation order of API/UVM/adapter package against interface definitions.
 - Whether standalone filelists meet consumer integration requirements.

@@ -2,10 +2,10 @@
 
 **Status:** Logical architecture selected for POC; BFM wiring still requires simulator validation
 **Date:** 2026-10-29
-**Depends on:** ADR-001 (HVL-side concrete proxies)
+**Depends on:** ADR-001 (HVL-side concrete proxies), including ADR-001 Amendment A1 (width pair 32/16; DW=64 non-standard extension only)
 
 ## Context
-Our **single APB UVC** must support active and passive instances, preserve a clear HDL/HVL boundary, and enable two physical data-width specializations (32 and 64 bits initially) without creating different UVC codebases. A monolithic proxy can expose both drive and observe operations, whereas two narrowly scoped APIs can enforce separation by capability. Neither placement nor number of API classes automatically solves the monitor data transport problem.
+Our **single APB UVC** must support active and passive instances, preserve a clear HDL/HVL boundary, and enable two physical data-width specializations (32 and 16 bits initially, ADR-001 Amendment A1) without creating different UVC codebases. A monolithic proxy can expose both drive and observe operations, whereas two narrowly scoped APIs can enforce separation by capability. Neither placement nor number of API classes automatically solves the monitor data transport problem.
 
 ## Decision
 1. Use separate **non-parameterized abstract drive and observe API classes** for this APB UVC. The driver receives only the drive API; the monitor receives only the observe API.
@@ -67,7 +67,7 @@ poc/apb_uvc/
   README.md
 ```
 
-This is **one APB UVC** with a pair of independent BFMs and one shared pin interface *per instance*. Its 32-bit and 64-bit instantiations use the same class definitions. Existing flat-layout APB UVC source at the repository root is not to be migrated or overwritten.
+This is **one APB UVC** with a pair of independent BFMs and one shared pin interface *per instance*. Its 32-bit and 16-bit instantiations use the same class definitions. Existing flat-layout APB UVC source at the repository root is not to be migrated or overwritten.
 
 ### Sketch, not production code
 ```systemverilog
@@ -97,7 +97,7 @@ endclass
 - Document whether the HDL BFM interface port technique and/or harness variant passes the intended emulation flow; do not infer emulation support from SV simulation alone.
 
 ## Required checks before acceptance
-- Concurrent 32-bit and 64-bit instances using the same non-parameterized agent/driver/monitor class definitions.
+- Concurrent 32-bit and 16-bit instances using the same non-parameterized agent/driver/monitor class definitions.
 - Passive instance has no constructed driver/sequencer and no usable drive handle, but observes transfers correctly.
 - A driver cannot invoke observe-only operations; a monitor cannot invoke drive-only operations through its API types.
 - Drive and observe adapters bind to the intended physical BFM instance; intentional cross-wiring is detected.

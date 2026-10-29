@@ -14,7 +14,7 @@
 
 ## Architectural requirements
 
-- **Exactly one reusable APB UVC**. Two simultaneous configurations `AW=32,DW=32` and `AW=32,DW=64` are two instances of that UVC, using the **same non-parameterized UVM driver/monitor/agent/sequencer class definitions**.
+- **Exactly one reusable APB UVC**. Two simultaneous configurations `AW=32,DW=32` and `AW=32,DW=16` (ADR-001 Amendment A1; DW=64 only as an opt-in non-standard extension) are two instances of that UVC, using the **same non-parameterized UVM driver/monitor/agent/sequencer class definitions**.
 - Inside `poc/apb_uvc/hdl`, define `apb_if.sv` for physical APB signals, modports and optional clocking blocks. Protocol tasks/timing belong in `apb_driver_bfm_if.sv` and `apb_monitor_bfm_if.sv`, each a separate HDL interface. They share the **same** `apb_if` instance through explicit ordinary signal ports in the demo HDL top.
 - Inside `poc/apb_uvc/hvl`, define separate abstract *drive* and *observe* proxy APIs; concrete HVL adapters hold correctly specialized virtual BFM interface handles. Do not send raw virtual pin interfaces to UVM drivers/monitors.
 - One `apb_agent_cfg` **per APB instance** carries base-class proxy handles and active/passive policy. The integration code constructs concrete proxies, assigns cfg and registers cfg once through a scoped `uvm_config_db` path.
@@ -28,7 +28,7 @@
 - Explicitly choose/document APB revision and supported pins; handle optional signals (`PSTRB`/`PPROT`) only when the chosen revision includes them.
 - Implement APB setup and access with correct signal stability through `PREADY=0` wait states; monitor completion at `PSEL && PENABLE && PREADY`.
 - Cover reads, writes, back-to-back transfers, reset transitions and documented error response.
-- Use one lossless 32/64-bit transaction representation with declared 4-state behavior; no silently clipped payload.
+- Use one lossless 32/16-bit (and 64-bit extension) transaction representation with declared 4-state behavior; no silently clipped payload.
 - Prove each width configuration stays isolated and no BFM virtual handle is accidentally cross-wired.
 - Run negative fault-injection tests demonstrating that missing/incorrect behavior is detected rather than falsely passing.
 
@@ -39,7 +39,7 @@
 3. **HVL API** — transaction, distinct abstract proxies, cfg; compile.
 4. **HVL concrete** — specialize and bind driver/monitor BFMs; compile.
 5. **UVM** — agent, sequencer, driver, monitor; compile + smoke run.
-6. **Tests** — 32/64 concurrent traffic, wait states, passive agent, reset cases, injected faults; run and log.
+6. **Tests** — 32/16 concurrent traffic, wait states, passive agent, reset cases, injected faults; run and log.
 7. **Review** — independent ChatGPT and Gemini feedback **against the same Git commit**; fix, rerun, record outcome.
 8. **Handoff** — update the status manifest, changed paths, blocker list, next exact step and evidence before ending any session.
 

@@ -1,6 +1,6 @@
 # AI contributor guide — single APB UVC POC
 
-**Scope:** Exactly one APB master UVC developed under `poc/apb_uvc/`; its 32-bit and 64-bit configurations are different **instances of the same component**. The repository's root-level legacy APB sources are not targets of this POC. Do not generate other protocols/UVCs, a generic verification framework or bridge scoreboards.
+**Scope:** Exactly one APB master UVC developed under `poc/apb_uvc/`; its 32-bit and 16-bit configurations (ADR-001 Amendment A1) are different **instances of the same component**. The repository's root-level legacy APB sources are not targets of this POC. Do not generate other protocols/UVCs, a generic verification framework or bridge scoreboards.
 
 ## Mandatory read before changes
 
@@ -24,6 +24,6 @@
 
 ## Validation philosophy
 
-Architecture choices informed by public DVCon literature are **not** simulator proofs. SV syntax, package order, APB timing, passive operation, 32/64 isolation and fault detection require executed checks. Do not fabricate successful results, claim emulation compatibility, or bring confidential employer/client code into this repo.
+Architecture choices informed by public DVCon literature are **not** simulator proofs. SV syntax, package order, APB timing, passive operation, 32/16 isolation and fault detection require executed checks. Do not fabricate successful results, claim emulation compatibility, or bring confidential employer/client code into this repo.
 
 **Handoff precedence:** actual checked-out code + executed logs establish observed behavior; accepted contract/ADRs establish intended design. Reconcile contradictions explicitly.
