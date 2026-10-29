@@ -122,6 +122,15 @@
 - The transaction, proxy bases, adapters, UVM agent, sequences, coverage, HVL top and tests were written under the toolchain gate, with no tool approved. Only a static self-review was done (`WORK_STATUS.md` *Static self-review done*).
 - Constructs most likely to need attention are listed in `WORK_STATUS.md` *First-compile watch list*. Each failure must be classified as source bug, standard violation or tool limitation, and fixed without tool-specific code.
 - **Evidence required:** an approved elaboration of `filelists/apb_poc.f` (slang + UVM library, or a commercial simulator) with 0 errors, then the four UVM tests passing with logs and SHA.
+- **Evidence 2026-10-29 (approved T1+T3, `evidence/APB-004/`, commit `386e64d`):** slang 12.1.0 + UVM 1.2 elaborates the full POC (standard and DW=64) with **0 errors and 0 warnings in project code**. The first run found 2 × `-Wshift-count-overflow` in `apb_drive_proxy.sv` (full-width shift in the lossless check), fixed generically in `386e64d`. The run still exits with 1 error inside the UVM library (RISK-012).
+- **Status:** OPEN until the UVM run is clean (RISK-012) and the UVM tests have run on a simulator.
+
+### RISK-012 — UVM 1.2 has no `timescale; mixing is an error under slang
+- **Status:** OPEN; owner decision T5 pending (`WORK_STATUS.md`).
+- slang 12.1.0 reports `MissingTimeScale` at `<UVM>/src/uvm_pkg.sv:28` ("design element does not have a time scale defined but others in the design do"). UVM 1.2 deliberately ships without a time scale; every project file declares `` `timescale 1ns/1ps ``.
+- **Classification:** library / language rule, not a project source bug. Not worked around in the sources: no edits to UVM, no removal of project time scales, no shim file.
+- **Proposed resolution:** owner approval to add slang's `--timescale 1ns/1ps` (default for design elements without one; the counterpart of every simulator's `-timescale` compile option). Commercial-simulator flows (T4) will need the same decision for their own option.
+- **Evidence required:** the T1 UVM command with the approved option, errors=0.
 
 ## Closed findings
 

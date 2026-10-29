@@ -5,10 +5,10 @@
 **Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`; `dev` merged back in at `91c369f` for the toolchain gate; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
 **Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest source commit described here: `5b217c97cf89bc551914f1f43ff89842f85f620a`.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
-**Phase:** M1 sources for steps 2–6 **written** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM. **HDL elaborates clean on approved slang (T1)**; HVL/UVM elaboration blocked (UVM 1.2 download denied by network policy); nothing simulated.
-**Tool results:** approved slang 12.1.0 HDL elaboration at `3dfd30a`: 0 errors, 0 diagnostics, standard and DW=64 (`evidence/APB-003b/`). Unapproved slang/Verilator runs at `5060712` are superseded (RISK-010).
+**Phase:** M1 sources for steps 2–6 **written** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM. Approved slang (T1) + UVM 1.2 (T3): **HDL elaborates clean; the full UVM POC elaborates with 0 errors/0 warnings in project code**, but the run fails on one error inside the UVM library (`MissingTimeScale`), pending owner decision T5. Nothing simulated.
+**Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** UVM 1.2 elaboration (T1 + T3, approved) — blocked until `www.accellera.org` is allowed by the environment network policy or the owner names another approved UVM 1.2 source.
+**Active task:** owner decision **T5** (add `--timescale 1ns/1ps` to the T1 UVM command), then re-run the UVM elaboration; after that, write the missing passive/reset/APB3 tests.
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
@@ -18,7 +18,7 @@
 1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file.
 2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
 3. **Owner rules in force:**
-   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version and commands. Approved so far (2026-10-29): **T1** slang 12.1.0 with the commands in the approval table, **T3** Accellera **UVM 1.2** source download. Nothing else.
+   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options**. Approved so far (2026-10-29): **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2`. Nothing else (T5 pending).
    - **No tool-specific workarounds:** no `` `ifdef <TOOL> ``, tool pragmas or tool-motivated rewrites. Log tool shortfalls in `REVIEW_FEEDBACK.md` instead.
    - Width pair **DW=32 + DW=16**; DW=64 only behind `APB_ENABLE_DW64_EXTENSION` / `ALLOW_NONSTANDARD_DW` / `allow_nonstandard_width`, never reported as compliant.
    - Revisions APB2–APB5 are per-instance configuration; default APB4 with `PSTRB` and `PPROT`.
@@ -40,14 +40,14 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 | DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md` v0.10, `CLAUDE_GENERATION_PROMPT.md` |
 | DOC-004 | APB-001 protocol contract | PROPOSED | `APB_PROTOCOL_CONTRACT.md`; Q1/Q3 decided; Q2/Q4/Q5 on proposed defaults |
 | IMP-001 | APB interface and BFMs | WRITTEN_M1 (APB2/3/4), ELABORATED (slang), NOT SIMULATED | `poc/apb_uvc/hdl/*`; `evidence/APB-003b/`; 4-state/release unverified (RISK-009); APB5 features M2/M3 |
-| IMP-002 | Proxy bases and concrete adapters | WRITTEN, NOT RUN | `hvl/api/*`, `hvl/adapter/*`; first compile is the main RISK-001 check |
-| IMP-003 | Non-parameterized UVM APB components | WRITTEN, NOT RUN | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
-| IMP-004 | 32/16 dual-instance UVM test | WRITTEN, NOT RUN | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv` |
+| IMP-002 | Proxy bases and concrete adapters | WRITTEN, ELABORATED (slang, project code clean), NOT SIMULATED | `hvl/api/*`, `hvl/adapter/*`; two specializations per adapter elaborate (`evidence/APB-004/`) |
+| IMP-003 | Non-parameterized UVM APB components | WRITTEN, ELABORATED (slang, project code clean), NOT SIMULATED | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
+| IMP-004 | 32/16 dual-instance UVM test | WRITTEN, ELABORATED (slang), NOT SIMULATED | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv` |
 | IMP-005 | Negative tests | WRITTEN, NOT RUN | fault injection (3 modes), cfg legality, unfit-width; independent reviews NOT_STARTED |
 
 ## Source manifest
 
-All paths under `poc/apb_uvc/`. HDL files and `tests/apb_hdl_smoke.sv` **elaborate clean on slang** at `3dfd30a` (`evidence/APB-003b/`); HVL/UVM files are **NOT RUN**. Nothing is simulated.
+All paths under `poc/apb_uvc/`. Every SV file elaborates with **0 errors and 0 warnings in project code** on approved slang at `386e64d` (`evidence/APB-004/`); the UVM run as a whole still fails on the UVM-library timescale error (T5). Nothing is simulated.
 
 | Path | Content | Status |
 |---|---|---|
@@ -141,13 +141,13 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 
 ## Validation evidence
 
-Current sources: HDL **elaborated** on approved slang (below); **nothing simulated**; HVL/UVM not yet elaborated. Earlier unapproved slang/Verilator runs on revision `5060712` are superseded (`evidence/APB-003a/README.md`).
+Current sources: everything **elaborated** on approved slang (below); **nothing simulated**. Earlier unapproved slang/Verilator runs on revision `5060712` are superseded (`evidence/APB-003a/README.md`).
 
 | Stage | Tool/version | Command | Result | Log | Commit |
 |---|---|---|---|---|---|
-| HDL elaboration (std + DW=64 ext.) | slang 12.1.0 (T1, approved) | `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` [`+define+APB_ENABLE_DW64_EXTENSION`] | **PASS** — 0 errors, 0 diagnostics (both) | `evidence/APB-003b/logs/` | `3dfd30a` |
+| HDL elaboration (std + DW=64 ext.) | slang 12.1.0 (T1, approved) | `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` [`+define+APB_ENABLE_DW64_EXTENSION`] | **PASS** — errors=0 warnings=0 (both) | `evidence/APB-004/logs/slang_hdl_*.log` (also `evidence/APB-003b/`) | `386e64d` |
 | HDL-only smoke 32/16 (+DW=64 ext.) and 3 fault runs | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
-| HVL + UVM elaboration (`apb_poc.f`) | slang 12.1.0 + UVM 1.2 (T1 + T3, approved) | NOT RUN — **blocked:** UVM 1.2 download from `www.accellera.org` refused by the environment network policy (`connect_rejected`, 403) | NOT RUN | — | — |
+| HVL + UVM elaboration (`apb_poc.f`, std + DW=64 ext.) | slang 12.1.0 + UVM 1.2 mirror `a3cb911` (T1 + T3, approved) | `python3 -I poc/apb_uvc/scripts/slang_elab.py +incdir+<UVM>/src <UVM>/src/uvm_pkg.sv -F poc/apb_uvc/filelists/apb_poc.f --top apb_hdl_top --top apb_hvl_top` [`+define+APB_ENABLE_DW64_EXTENSION`] | **FAIL (UVM library)** — errors=1 warnings=2, all in UVM 1.2: `MissingTimeScale` (`uvm_pkg.sv:28`), 2 × `-Wempty-body`. **Project code: 0 errors, 0 warnings** | `evidence/APB-004/logs/slang_uvm_*.log` | `386e64d` |
 | UVM `apb_poc_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
 | UVM `apb_fault_injection_test` ×3 | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
 | UVM `apb_cfg_negative_test`, `apb_width_negative_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
@@ -158,14 +158,15 @@ Current sources: HDL **elaborated** on approved slang (below); **nothing simulat
 
 ## Toolchain approval request
 
-**Owner decision 2026-10-29: T1 and T3 approved, UVM version 1.2.** T2 withdrawn; T4 is an owner-run option. Nothing outside these items may run (contract gate; approval for one item does not cover another). No tool-specific source changes or extra tool flags. Commands are from the repository root.
+**Owner decision 2026-10-29: T1 and T3 approved, UVM version 1.2, source `github.com/gchinna/uvm-1.2` (owner-named).** T2 withdrawn; T4 is an owner-run option; **T5 pending**. Nothing outside these items may run (contract gate; approval for one item does not cover another). No tool-specific source changes and no extra tool flags without approval. Commands are from the repository root.
 
 | # | Tool / version | Scope | Exact commands |
 |---|---|---|---|
-| T1 | slang 12.1.0 (pyslang, PyPI) — **APPROVED** | Elaboration/lint: HDL smoke (**done, PASS**); full UVM POC once T3 exists | HDL: `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` (and with `+define+APB_ENABLE_DW64_EXTENSION`). UVM: `python3 -I poc/apb_uvc/scripts/slang_elab.py +incdir+<UVM>/src <UVM>/src/uvm_pkg.sv -F poc/apb_uvc/filelists/apb_poc.f --top apb_hdl_top --top apb_hvl_top` |
+| T1 | slang 12.1.0 (pyslang, PyPI) — **APPROVED** | Elaboration/lint of the HDL smoke and the full UVM POC | HDL: `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` (and with `+define+APB_ENABLE_DW64_EXTENSION`). UVM: `python3 -I poc/apb_uvc/scripts/slang_elab.py +incdir+<UVM>/src <UVM>/src/uvm_pkg.sv -F poc/apb_uvc/filelists/apb_poc.f --top apb_hdl_top --top apb_hvl_top` (and with the same define) |
 | T2 | ~~Verilator 5.020~~ | **Withdrawn:** cannot build the portable sources (RISK-001/009); workarounds not allowed | — |
-| T3 | Accellera **UVM 1.2** source — **APPROVED** | Download only, for T1 elaboration; not a simulator | `https://www.accellera.org/images/downloads/standards/uvm/uvm-1.2.tar.gz` into `/opt/tools/uvm-download/` (outside the repo). **Blocked:** host denied by the environment network policy; needs `www.accellera.org` in the environment's Allowed domains, or an owner-named alternative source. Unofficial mirrors are not used |
+| T3 | UVM **1.2** source — **APPROVED**, owner-named mirror | Download only, for T1 elaboration; not a simulator | `git clone https://github.com/gchinna/uvm-1.2.git /opt/tools/uvm-1.2-gchinna` (checked: commit `a3cb911`; release notes `UVM_1_2_RELEASE-1-gd6e87e2`; only extra file `src/tags`; see `evidence/APB-004/README.md`). Accellera's own host is blocked by the network policy, so no byte-compare with the official tarball |
 | T4 | Commercial simulator on EDA Playground (owner picks Questa/Xcelium/VCS/…, with its UVM 1.2 or 1800.2 library) | Owner-run: HDL smoke and the UVM tests in *Tests available*, 4-state checks (RISK-009) | HDL bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_hdl_smoke.f apb_hdl_smoke_bundle.sv` (top `apb_hdl_smoke`). UVM bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_poc.f apb_poc_bundle.sv` (tops `apb_hdl_top apb_hvl_top`, run option `+UVM_TESTNAME=<test>`). The bundle step is plain text processing; record each result here |
+| T5 | slang option `--timescale 1ns/1ps` — **PENDING owner decision** | Default time scale for design elements that declare none — only UVM 1.2's `uvm_pkg` here; project files keep their own `` `timescale 1ns/1ps ``. Counterpart of the `-timescale` compile option of every simulator; no source change | the T1 UVM command with `--timescale 1ns/1ps` added. Without it the UVM run fails on `MissingTimeScale` inside `uvm_pkg.sv` |
 
 ## AI handoff template (fill every session)
 
@@ -192,15 +193,15 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 ```text
 HANDOFF FROM: Claude (Claude Code session)
 REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-001-protocol-contract
-EXACT COMMIT SHA: approved HDL elaboration at 3dfd30a3d737e5b2133cdee9d3f382f955db39a6 (sources unchanged since 5b217c9); this checkpoint is the evidence commit on top (`git log -1`)
+EXACT COMMIT SHA: approved runs at 386e64d5130748329f8148507837819e7d9f6456; evidence in fae5f10; this checkpoint is the docs commit on top (`git log -1`)
 GIT STATUS (including uncommitted files): clean after commit
-CURRENT TASK ID: APB-004 UVM elaboration (T1+T3 approved) blocked on network access to www.accellera.org
-FILES CREATED/CHANGED (this session): poc/apb_uvc/hvl/** (new), examples/apb_hvl_top.sv, tests/apb_poc_*.sv, tests/apb_fake_proxies.sv, tests/apb_fault_injection_test.sv, tests/apb_negative_tests.sv, filelists/apb_hvl.f, filelists/apb_poc.f, scripts/make_eda_bundle.py; docs: WORK_STATUS.md, APB_PROTOCOL_CONTRACT.md, REVIEW_FEEDBACK.md, poc/apb_uvc/README.md
-PROVEN WORKING (with log/command): slang 12.1.0 (T1) HDL elaboration of apb_hdl_smoke.f, standard and DW=64: 0 errors, 0 diagnostics (evidence/APB-003b/). make_eda_bundle.py exercised on apb_poc.f and apb_hdl_smoke.f (text processing only)
-FAILED CHECKS (with log/command): T3 download: curl https://www.accellera.org/images/downloads/standards/uvm/uvm-1.2.tar.gz -> 403 connect_rejected by the environment egress policy
-NOT YET RUN: HVL/UVM elaboration; every simulation (see Validation evidence)
+CURRENT TASK ID: APB-004 UVM elaboration done except the UVM-library timescale error; waiting for owner decision T5
+FILES CREATED/CHANGED (this session): poc/apb_uvc/hvl/adapter/apb_drive_proxy.sv (lossless check without full-width shifts), poc/apb_uvc/scripts/slang_elab.py (reports slang's error/warning counts); docs: evidence/APB-004/**, WORK_STATUS.md, REVIEW_FEEDBACK.md
+PROVEN WORKING (with log/command): slang 12.1.0 + UVM 1.2 (T1+T3) at 386e64d: HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64: project code 0 errors 0 warnings (evidence/APB-004/)
+FAILED CHECKS (with log/command): UVM POC elaboration std/DW=64 exit 1: MissingTimeScale in <UVM>/src/uvm_pkg.sv:28 (library has no `timescale, project files do); fix needs T5. T3 Accellera download blocked earlier (403 connect_rejected); replaced by the owner-named mirror
+NOT YET RUN: every simulation (see Validation evidence); clean UVM elaboration (needs T5)
 UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
-OPEN REVIEW FINDING IDS: RISK-001..011
+OPEN REVIEW FINDING IDS: RISK-001..012
 ARCHITECTURE CONTRACT/ADR AMENDED?: no change this session (contract v0.10, ADR-001 A1)
-NEXT EXACT COMMAND/SMALLEST TASK: once www.accellera.org is allowed: download UVM 1.2 (T3 command), extract under /opt/tools/uvm-download/, then run `python3 -I poc/apb_uvc/scripts/slang_elab.py +incdir+<UVM>/src <UVM>/src/uvm_pkg.sv -F poc/apb_uvc/filelists/apb_poc.f --top apb_hdl_top --top apb_hvl_top` (and with +define+APB_ENABLE_DW64_EXTENSION), record logs in evidence/APB-004/, fix SOURCE bugs only (no tool-specific changes, no extra flags). Then write the missing passive/reset/APB3 tests (Known gaps)
+NEXT EXACT COMMAND/SMALLEST TASK: if the owner approves T5: run the T1 UVM command with `--timescale 1ns/1ps` (std and DW=64), record in evidence/APB-004/, fix SOURCE bugs only. Otherwise keep the UVM row as FAIL (library). Then write the missing passive/reset/APB3 tests (Known gaps). Simulation needs T4 (owner on EDA Playground) or another approved simulator
 ```
