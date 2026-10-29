@@ -1,5 +1,7 @@
 # Evidence — APB-003a (HDL step 2)
 
+> **SUPERSEDED.** These logs describe source revision `5060712` only. That revision contained Verilator-specific workarounds, which the owner rejected on 2026-10-29 ("no tool-specific workarounds"). They were reverted (`REVIEW_FEEDBACK.md` RISK-010), so **none of these results apply to the current sources**, which are NOT RUN. The files are kept as a record of what was observed and of the Verilator 5.020 defects (`verilator_repro/`).
+
 > **Toolchain gate:** the slang 12.1.0 and Verilator 5.020 runs below were executed on 2026-10-29 **before** the toolchain approval gate (ARCHITECTURE_CONTRACT "Toolchain selection and execution gate", `dev` PR #3) reached this branch, and **without explicit owner approval of those tools**. Their outcomes are recorded as observed, but they are **not accepted as gate evidence** until the owner approves the tools and commands (see `WORK_STATUS.md` *Toolchain approval request*) or the checks are re-run on an approved tool. Source edits made for these tools are listed in `REVIEW_FEEDBACK.md` RISK-010.
 
 | Item | Value |

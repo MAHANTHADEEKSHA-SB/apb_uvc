@@ -35,12 +35,12 @@
 - **Status:** OPEN; **applies to** `hdl/apb_{driver,monitor}_bfm_if.sv`.
 - Do the typed virtual BFM handles compile when two BFMs use **ordinary individual signal ports** wired to the same `apb_if` instance?
 - **Evidence required:** compiler version, elaborated DW=32 and DW=16 instances, success/failure logs, port connection review. Do not use interface-typed BFM ports with virtual handles without validating the known SV portability restriction.
-- **Evidence 2026-10-29 (APB-003a, see `evidence/APB-003a/`):**
+- **Evidence 2026-10-29 (APB-003a revision `5060712`, superseded by the RISK-010 reverts; see `evidence/APB-003a/`):**
   - slang 12.1.0: the full HDL smoke elaborates with 0 errors and 0 warnings, both standard and with the DW=64 extension. Two BFM interfaces with ordinary signal ports share one `apb_if` per instance.
   - Verilator 5.020: the same design builds and simulates. Calling BFM tasks through a typed `virtual apb_*_bfm_if #(…)` handle works **for one specialization** (repro r1/r2).
   - **Tool defect found:** Verilator 5.020 aborts with an internal fault (`V3Broken`: broken `m_ifacep` link after `deadifyModules`) when **two specializations of a parameterized class** each declare a parameterized virtual-interface type (repro r3/r4). That is exactly the ADR-001 `drive_adapter #(DW)` pattern. A non-parameterized abstract base plus per-width non-parameterized concrete classes works (r6).
   - Verilator 5.020 also rejects a generic interface port bound to a hierarchical instance (`expected 'apb_driver_bfm_if' … is a different interface 'apb_driver_bfm_if__D10'`); binding the consumer into the instantiating module works.
-  - **Consequence:** Verilator 5.020 cannot validate the ADR-001 adapter layer (step 4). Use slang for elaboration and a commercial simulator (EDA Playground) or a newer Verilator for simulation; do not change ADR-001 on the basis of a tool bug.
+  - **Consequence:** Verilator 5.020 cannot validate the ADR-001 adapter layer (step 4). Since the RISK-010 reverts, it cannot build the generic HDL smoke either (class runner, `fork` in the driver, `'z` release). Use slang for elaboration and a commercial simulator (EDA Playground) or a newer Verilator for simulation; do not change ADR-001 or the sources on the basis of a tool bug.
 - **Status:** OPEN — HDL half evidenced; the HVL adapter half is not yet written.
 
 ### RISK-002 — APB handshake scheduling and observation
@@ -48,7 +48,8 @@
 - Does the master maintain correct `PSEL`, `PENABLE`, address/control/data through `PREADY=0` wait states? Does the monitor publish exactly once at `PSEL && PENABLE && PREADY` using race-free sampling?
 - **Evidence required:** zero-wait, multiple-wait, back-to-back transfer and reset-at-boundary directed waveforms, assertion results.
 - **Evidence 2026-10-29 (Verilator 5.020, `evidence/APB-003a/`):** 0-wait and 2-wait reads and writes, a back-to-back write→read (SETUP at completion cycle + 1), a `PSTRB` partial write and a `PSLVERR` read pass on DW=32, DW=16 and DW=64-extension instances. Every published transfer matches, the publication count is exact (no duplicates, checked 4 cycles after the last transfer) and the monitor error count is 0. Three injected faults (`PADDR` change in a wait state, ACCESS without SETUP, `PSEL` dropped while `PREADY` LOW) are each detected with the matching error code on the faulted instance only. A mutant with the `PADDR` stability check removed makes the fault-1 run FAIL.
-- **Transport finding:** with a named event (and with a level `wait`), Verilator 5.020 never woke a `get_transfer()` caller that suspended in the same time step just before the publish, which hung the smoke. The implemented rule is `@(obs_tick or posedge PCLK)`, with `obs_tick` toggled by NBA, so delivery is same-step on compliant simulators and one `PCLK` late on Verilator 5.020. The data is unaffected.
+- **Transport finding (Verilator 5.020 only):** with a named event, Verilator 5.020 never woke a `get_transfer()` caller that suspended in the same time step just before the publish. After RISK-010 the sources keep the standard named-event design (`while (queue empty) @(obs_ev)`), which is correct SystemVerilog; the Verilator behaviour is logged as a tool limitation, not coded around.
+- The PASS results above were measured on the superseded revision `5060712`, which still had the workarounds. They do not apply to the current sources.
 - **Not yet run:** reset at a transfer boundary or mid-transfer, any 4-state simulator.
 - **Status:** OPEN (partially evidenced).
 
@@ -89,7 +90,7 @@
 - **Evidence required:** the same smoke plus a release/X-injection test on a 4-state simulator, with the tool version and log.
 
 ### RISK-010 — Source changes made for unapproved tools (toolchain gate rule 5)
-- **Status:** OPEN — owner disposition required. Raised when the toolchain gate (`dev` PR #3) was merged on 2026-10-29.
+- **Status:** DISPOSITIONED 2026-10-29 — owner: "no tool-specific workarounds; generic as much as possible". C1–C5 reverted and the `verilator lint_off` pragmas removed from the example slave; C6 kept as tool-neutral hygiene (owner may still veto). Closes once the reverted sources compile on an approved tool. Raised when the toolchain gate (`dev` PR #3) was merged.
 - The gate forbids rewriting valid SystemVerilog/UVM solely for an unapproved tool's limitations. These edits were made while running slang 12.1.0 and Verilator 5.020 without explicit approval:
 
 | ID | File | Change | Driven by | Standard-valid before? | Proposed disposition |
@@ -102,6 +103,18 @@
 | C6 | `hdl/*`, `examples/*`, `tests/*` | Named generate blocks, sign/width-clean comparisons, word-organised slave memory | slang warnings | yes | Lint hygiene, no behaviour change; propose keep |
 
 - None of these touch an accepted ADR decision; the HVL adapters (ADR-001) are not written yet, and the Verilator class defect (RISK-001) has **not** been used to change ADR-001.
+- **Applied disposition:**
+
+| ID | Action taken |
+|---|---|
+| C1 | Reverted: released outputs are always `'z`; no `` `ifdef VERILATOR `` |
+| C2 | Reverted: `fork…join_any` reset watcher restored (immediate `RESET_ABORTED`, RST-2) |
+| C3 | Reverted: named event `obs_ev`; `get_transfer()` waits `while (queue empty) @(obs_ev)` |
+| C4 | Reverted: example slave memory cleared by `PRESETn` again |
+| C5 | Reverted: width-parameterized class runner with typed virtual BFM handles; `tests/apb_hdl_smoke_runner.sv` deleted |
+| C6 | Kept: named generate blocks, sign/width-clean comparisons, word-organised slave memory |
+| — | Removed `scripts/run_hdl_smoke.sh` (Verilator-specific runner that cannot build the generic sources) |
+| — | Kept real test-bug fixes (they are not tool-specific): monitor count checked only after draining the expected observations; no initializer on a static variable in procedural code |
 
 ## Closed findings
 
