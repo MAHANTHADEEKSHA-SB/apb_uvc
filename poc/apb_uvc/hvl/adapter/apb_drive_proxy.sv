@@ -120,15 +120,16 @@ class apb_drive_proxy #(
       `uvm_error("APB_REQ", {get_name(), ": X/Z in write data: ", req.convert2string()})
       ok = 1'b0;
     end
-    if ((req.addr >> ADDR_WIDTH) != 0) begin
+    // Lossless rule: every bit at or above the bus width must be a known 0
+    if (!upper_bits_zero_addr(req.addr)) begin
       `uvm_error("APB_REQ", $sformatf("%s: addr %0h does not fit AW=%0d", get_name(), req.addr, ADDR_WIDTH))
       ok = 1'b0;
     end
-    if ((req.wdata >> DATA_WIDTH) !== '0) begin
+    if (!upper_bits_zero_data(req.wdata)) begin
       `uvm_error("APB_REQ", $sformatf("%s: wdata %0h does not fit DW=%0d", get_name(), req.wdata, DATA_WIDTH))
       ok = 1'b0;
     end
-    if ((req.strb >> STRB_WIDTH) != 0) begin
+    if (!upper_bits_zero_strb(req.strb)) begin
       `uvm_error("APB_REQ", $sformatf("%s: strb %0h does not fit DW=%0d", get_name(), req.strb, DATA_WIDTH))
       ok = 1'b0;
     end
@@ -154,6 +155,27 @@ class apb_drive_proxy #(
       ok = 1'b0;
     end
     return ok;
+  endfunction
+
+  // 1 when every bit at index >= the bus width is a known 0. Written as a
+  // loop rather than `value >> WIDTH`, which shifts by the full operand
+  // width whenever the bus is as wide as the transaction.
+  protected function bit upper_bits_zero_addr(logic [APB_MAX_AW-1:0] value);
+    for (int unsigned i = ADDR_WIDTH; i < APB_MAX_AW; i++)
+      if (value[i] !== 1'b0) return 1'b0;
+    return 1'b1;
+  endfunction
+
+  protected function bit upper_bits_zero_data(logic [APB_MAX_DW-1:0] value);
+    for (int unsigned i = DATA_WIDTH; i < APB_MAX_DW; i++)
+      if (value[i] !== 1'b0) return 1'b0;
+    return 1'b1;
+  endfunction
+
+  protected function bit upper_bits_zero_strb(logic [APB_MAX_SW-1:0] value);
+    for (int unsigned i = STRB_WIDTH; i < APB_MAX_SW; i++)
+      if (value[i] !== 1'b0) return 1'b0;
+    return 1'b1;
   endfunction
 
 endclass : apb_drive_proxy

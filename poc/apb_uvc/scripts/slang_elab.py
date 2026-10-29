@@ -1,6 +1,11 @@
 """Elaborate SystemVerilog sources with slang (pyslang) and report diagnostics.
 
 Usage: python3 -I slang_elab.py <slang command-line arguments...>
+
+Prints slang's diagnostics, then one summary line with the numbers slang
+reports after applying its warning options (suppressed diagnostics are not
+counted):
+    SLANG_RESULT: errors=<n> warnings=<n> slang=<version>
 Exit status 0 when elaboration produced no errors, 1 otherwise.
 """
 import sys
@@ -18,10 +23,10 @@ def main(argv):
         return 1
     compilation = driver.createCompilation()
     driver.reportCompilation(compilation, False)
-    diags = compilation.getAllDiagnostics()
-    errors = sum(1 for d in diags if d.isError())
+    errors = driver.diagEngine.numErrors
+    warnings = driver.diagEngine.numWarnings
     v = pyslang.VersionInfo
-    print(f"SLANG_RESULT: errors={errors} diagnostics={len(diags)} "
+    print(f"SLANG_RESULT: errors={errors} warnings={warnings} "
           f"slang={v.getMajor()}.{v.getMinor()}.{v.getPatch()}+{v.getHash()}")
     return 0 if errors == 0 else 1
 
