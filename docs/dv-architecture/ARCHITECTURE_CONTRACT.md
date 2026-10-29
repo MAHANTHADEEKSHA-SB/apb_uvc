@@ -1,8 +1,10 @@
 # Architecture contract — single APB UVC POC
 
-**Version:** 0.9 · **Date:** 2026-10-29
-**Change in 0.8:** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`.
+**Version:** 0.10 · **Date:** 2026-10-29
+**Change in 0.8 (`dev`, PR #3):** toolchain selection and execution gate — no simulator/compiler runs without explicit user approval.
+**Change in 0.8 (`feature/apb-001-protocol-contract`):** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`.
 **Change in 0.9:** ADR-001 Amendment A1 (owner-approved) — width pair DW=32 + DW=16; DW=64 kept as a non-standard extension, off by default.
+**Change in 0.10:** merge of both 0.8 lines; combined text only, no new decisions.
 **Scope:** One reusable **APB UVC** developed under `poc/apb_uvc/`, comprising HDL signal interface, independent drive/monitor BFMs, HVL abstract and concrete proxies, UVM agent, coverage, sequences, filelists and demo. Existing flat-layout APB UVC files at the repository root are **not to be changed** by this milestone.
 
 This contract describes *intended architecture*, not a claim that code has been generated, compiled, simulated or accepted by a simulator. Accepted decisions can change only by a recorded, reviewed ADR amendment. Execution status belongs in `WORK_STATUS.md`.
@@ -61,10 +63,19 @@ This contract describes *intended architecture*, not a claim that code has been 
 | `filelists/` | Separate HDL/HVL/core/demo compile units | Assume runtime `is_active` removes compile load |
 | `examples/` + `tests/` | Demo slave, top, acceptance tests | Be mandatory dependencies of a delivered UVC core |
 
+## Toolchain selection and execution gate [ACCEPTED_FOR_POC]
+
+- **No default or automatically approved simulator.** Verilator, Questa, Xcelium, VCS, Icarus and other HDL toolchains are candidate tools, not instructions to execute.
+- Before invoking any simulator/compiler for lint, compilation, elaboration, simulation or regression, the implementer must **present the selected tool/version, intended commands, and scope and obtain explicit user approval**. Installed tools, available licences, environment variables, and old conversation suggestions are not authorization.
+- Non-executing discovery of available tools and version metadata is allowed; do not launch an unapproved simulator binary even for version discovery. Record an unknown version as **UNKNOWN**, not a guess.
+- While toolchain approval is pending, source design and generation, manual/static reviews, package/filelist preparation and proposed test cases may proceed. All unexecuted lint, compile, simulation and regression stages must remain **NOT RUN** in `WORK_STATUS.md`.
+- Do not distort a standards-compliant UVM/SystemVerilog architecture to satisfy a limitation of a tool not explicitly approved. After approval, classify failures as source bugs, language/standard violations, or tool limitations, with supporting evidence.
+- Approval for one tool/command is not blanket approval for alternative tools or newly introduced execution workflows. Resolve conflicts before execution.
+
 ## Build and acceptance gates
 
 1. Manifest and dependency graph are reviewable and consistent with `DIRECTORY_ARCHITECTURE.md`.
-2. Named simulator compiles the **same APB UVC class definitions** for 32-bit and 16-bit APB instances in one test (64-bit only as the optional extension).
+2. **After explicit toolchain approval**, a named simulator compiles the **same APB UVC class definitions** for 32-bit and 16-bit APB instances in one test (64-bit only as the optional extension, ADR-001 A1); until then, record NOT RUN.
 3. Driver and monitor BFMs share each instance's single signal interface; no conflicting drivers, cross-wiring or invalid virtual interface types.
 4. APB setup/access/wait-state behavior and monitor completion sampling pass directed tests; include intentional error/fault injection expected to fail.
 5. Passive agent works as observer; tool-specific build variant may be demonstrated separately.
@@ -76,7 +87,7 @@ This contract describes *intended architecture*, not a claim that code has been 
 - APB revision and concrete signal set; reset polarity and semantics — **proposed** in `APB_PROTOCOL_CONTRACT.md`, awaiting review.
 - Exact lossless transaction representation, constraints and 4-state policy for DW=32 and 16 (and the DW=64 extension).
 - Detailed port direction/clocking rules; monitor BFM → HVL observation task design.
-- Simulator and UVM version; compilation order of API/UVM/adapter package against interface definitions.
+- Explicit user approval of simulator/toolchain/version and proposed execution commands; UVM version and compilation order of API/UVM/adapter package against interface definitions.
 - Whether standalone filelists meet consumer integration requirements.
 
 ## Sources and limitations

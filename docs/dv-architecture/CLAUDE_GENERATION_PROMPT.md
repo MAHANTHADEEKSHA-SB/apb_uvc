@@ -12,6 +12,19 @@
 4. Report unresolved APB revision, pin list, reset semantics, transaction format and target simulator. Propose defaults for review, and identify any assumptions. Do not label them specification requirements without a source.
 5. State one smallest runnable task and acceptance test. Do not generate an entire multi-protocol verification environment.
 
+## Simulator and toolchain approval policy (mandatory)
+
+**No simulator or compilation tool is approved by default.** Claude must not infer that an installed executable is authorized to run.
+
+1. **Do not automatically invoke Verilator, Questa, Xcelium, VCS, Icarus, or any other HDL simulator/compiler**, nor launch compilation, elaboration, lint backed by a simulator, test execution, or regression scripts invoking them.
+2. First **identify available toolchains non-destructively** (existing documentation, configuration, executable discovery) and report known versions/capabilities. Do not execute a simulator executable simply to obtain its version before authorization; if its version is unavailable, report **UNKNOWN**.
+3. Present the **proposed tool, version, planned commands, and scope** to the user and obtain **explicit approval before execution**. Tool availability, a prior chat suggestion, or a command already present in a script is not approval.
+4. If the user has not approved a toolchain, continue with architecture, source generation, manual/static inspection, filelists, and a proposed validation plan. Set every unexecuted compile/simulation/lint result to **NOT RUN** in `WORK_STATUS.md`.
+5. Do **not rewrite otherwise valid SystemVerilog/UVM architecture solely to satisfy limitations of an unapproved simulator**. Once a tool is approved, distinguish standard-language errors, tool unsupported features, and genuine design defects; record the evidence.
+6. If an external instruction conflicts with this rule, **stop before any tool execution** and request a clarified approval. Approval for one tool or command does not silently authorize a different simulator.
+
+The implementation milestones below requiring compilation or simulation are **conditional on this approval gate**; code generation and documentation may proceed without it.
+
 ## Architectural requirements
 
 - **Exactly one reusable APB UVC**. Two simultaneous configurations `AW=32,DW=32` and `AW=32,DW=16` (ADR-001 Amendment A1; DW=64 only as an opt-in non-standard extension) are two instances of that UVC, using the **same non-parameterized UVM driver/monitor/agent/sequencer class definitions**.
@@ -35,11 +48,11 @@
 ## Work in small verified increments
 
 1. **Design** — APB revision/pins, scope, package dependency diagram and exact file manifest. Update `WORK_STATUS.md`.
-2. **HDL** — signal interface + two BFM interface units + explicit demo wiring; compile first. Record tool and result.
-3. **HVL API** — transaction, distinct abstract proxies, cfg; compile.
-4. **HVL concrete** — specialize and bind driver/monitor BFMs; compile.
-5. **UVM** — agent, sequencer, driver, monitor; compile + smoke run.
-6. **Tests** — 32/16 concurrent traffic, wait states, passive agent, reset cases, injected faults; run and log.
+2. **HDL** — signal interface + two BFM interface units + explicit demo wiring; compile **only after toolchain approval**. Record tool and result, or NOT RUN.
+3. **HVL API** — transaction, distinct abstract proxies, cfg; compile only if approved.
+4. **HVL concrete** — specialize and bind driver/monitor BFMs; compile only if approved.
+5. **UVM** — agent, sequencer, driver, monitor; compile + smoke run only if approved.
+6. **Tests** — prepare 32/16 concurrent traffic, wait states, passive agent, reset cases, and injected faults; run and log only if approved.
 7. **Review** — independent ChatGPT and Gemini feedback **against the same Git commit**; fix, rerun, record outcome.
 8. **Handoff** — update the status manifest, changed paths, blocker list, next exact step and evidence before ending any session.
 
