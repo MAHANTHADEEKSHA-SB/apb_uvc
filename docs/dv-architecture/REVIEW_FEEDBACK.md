@@ -35,11 +35,22 @@
 - **Status:** OPEN; **applies to** `hdl/apb_{driver,monitor}_bfm_if.sv`.
 - Do the typed virtual BFM handles compile when two BFMs use **ordinary individual signal ports** wired to the same `apb_if` instance?
 - **Evidence required:** compiler version, elaborated DW=32 and DW=16 instances, success/failure logs, port connection review. Do not use interface-typed BFM ports with virtual handles without validating the known SV portability restriction.
+- **Evidence 2026-10-29 (APB-003a, see `evidence/APB-003a/`):**
+  - slang 12.1.0: the full HDL smoke elaborates with 0 errors and 0 warnings, both standard and with the DW=64 extension. Two BFM interfaces with ordinary signal ports share one `apb_if` per instance.
+  - Verilator 5.020: the same design builds and simulates. Calling BFM tasks through a typed `virtual apb_*_bfm_if #(…)` handle works **for one specialization** (repro r1/r2).
+  - **Tool defect found:** Verilator 5.020 aborts with an internal fault (`V3Broken`: broken `m_ifacep` link after `deadifyModules`) when **two specializations of a parameterized class** each declare a parameterized virtual-interface type (repro r3/r4). That is exactly the ADR-001 `drive_adapter #(DW)` pattern. A non-parameterized abstract base plus per-width non-parameterized concrete classes works (r6).
+  - Verilator 5.020 also rejects a generic interface port bound to a hierarchical instance (`expected 'apb_driver_bfm_if' … is a different interface 'apb_driver_bfm_if__D10'`); binding the consumer into the instantiating module works.
+  - **Consequence:** Verilator 5.020 cannot validate the ADR-001 adapter layer (step 4). Use slang for elaboration and a commercial simulator (EDA Playground) or a newer Verilator for simulation; do not change ADR-001 on the basis of a tool bug.
+- **Status:** OPEN — HDL half evidenced; the HVL adapter half is not yet written.
 
 ### RISK-002 — APB handshake scheduling and observation
 - **Status:** OPEN.
 - Does the master maintain correct `PSEL`, `PENABLE`, address/control/data through `PREADY=0` wait states? Does the monitor publish exactly once at `PSEL && PENABLE && PREADY` using race-free sampling?
 - **Evidence required:** zero-wait, multiple-wait, back-to-back transfer and reset-at-boundary directed waveforms, assertion results.
+- **Evidence 2026-10-29 (Verilator 5.020, `evidence/APB-003a/`):** 0-wait and 2-wait reads and writes, a back-to-back write→read (SETUP at completion cycle + 1), a `PSTRB` partial write and a `PSLVERR` read pass on DW=32, DW=16 and DW=64-extension instances. Every published transfer matches, the publication count is exact (no duplicates, checked 4 cycles after the last transfer) and the monitor error count is 0. Three injected faults (`PADDR` change in a wait state, ACCESS without SETUP, `PSEL` dropped while `PREADY` LOW) are each detected with the matching error code on the faulted instance only. A mutant with the `PADDR` stability check removed makes the fault-1 run FAIL.
+- **Transport finding:** with a named event (and with a level `wait`), Verilator 5.020 never woke a `get_transfer()` caller that suspended in the same time step just before the publish, which hung the smoke. The implemented rule is `@(obs_tick or posedge PCLK)`, with `obs_tick` toggled by NBA, so delivery is same-step on compliant simulators and one `PCLK` late on Verilator 5.020. The data is unaffected.
+- **Not yet run:** reset at a transfer boundary or mid-transfer, any 4-state simulator.
+- **Status:** OPEN (partially evidenced).
 
 ### RISK-003 — Lossless width and per-instance isolation
 - **Status:** OPEN.
@@ -71,6 +82,11 @@
 - **Status:** OPEN (design review).
 - The owner requires all APB2–APB5 features in one UVC, so `apb_if` declares the APB5 pin superset with runtime presence flags. ADR-001 rejected a *width* maximum-footprint interface; widths here stay parameterized, but reviewers should confirm that the unused-pin, tie-off and debug costs are acceptable and that absent-input defaults (`PREADY`=1, `PSLVERR`=0, IHI Table B-1) cannot mask a real connection fault.
 - **Evidence required:** a test where a present-but-unconnected `PREADY` (Z/X) is reported rather than defaulted.
+
+### RISK-009 — Verilator 5.020 cannot verify 4-state or drive-release behaviour
+- **Status:** OPEN; needs a 4-state simulator run (e.g. EDA Playground, `poc/apb_uvc/README.md`).
+- Verilator is 2-state and does not support `'z` driven into interface nets (`Unsupported LHS tristate construct: VARXREF`). Under `VERILATOR`, `apb_driver_bfm_if` therefore drives released outputs as 0. These are untested so far: the passive-instance release to `'z` (section 8), the monitor's X/Z checks (`PSEL_XZ`, `CONTROL_XZ`, `PREADY_XZ` — RISK-008), and the 4-state round trip of `PRDATA`.
+- **Evidence required:** the same smoke plus a release/X-injection test on a 4-state simulator, with the tool version and log.
 
 ## Closed findings
 

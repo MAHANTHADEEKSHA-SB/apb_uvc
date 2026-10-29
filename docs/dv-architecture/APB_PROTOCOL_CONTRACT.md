@@ -1,6 +1,6 @@
 # APB protocol contract — APB-001 (single APB UVC POC)
 
-**Status:** PROPOSED — defaults for review; no SV source generated or compiled against this contract yet.
+**Status:** PROPOSED — Q1/Q3 decided by the owner; Q2/Q4/Q5 implemented on the proposed defaults, pending review. Step 2 (HDL) implemented against this contract; see §11 for evidence.
 **Date:** 2026-10-29
 **Task:** APB-001 (`WORK_STATUS.md`)
 **Normative source:** Arm *AMBA APB Protocol Specification*, ARM IHI 0024D (ID041221, 09 April 2021), referred to below as **[IHI]**. The PDF is Arm copyright and is not stored in this repository.
@@ -200,32 +200,36 @@ IHI 0024D only says that `PRESETn` is active-LOW and normally connected to the s
 
 ---
 
-## 7. Monitor transport proposal (RISK-002) [ASSUMPTION]
+## 7. Monitor transport (RISK-002) [ASSUMPTION; implemented in `apb_monitor_bfm_if`]
 
 - The monitor BFM samples through a clocking block (`@(posedge PCLK)`, input skew `#1step`) and reconstructs transfers in an always-running HDL process, independent of HVL timing.
 - A transfer is **published once**, at the `PCLK` edge where `PSEL & PENABLE & PREADY` is sampled HIGH (APB-R05). The completed transfer goes into a bounded HDL queue of plain packed values; overflow is an error.
 - The HVL observe adapter calls a blocking BFM task `get_transfer(output ...)` from the UVM monitor's `run_phase`, then builds the `apb_transaction`. No UVM class objects exist on the HDL side (ADR-002 §6).
 - The monitor works whether or not the driver BFM is enabled, because it only reads pins.
-- This is a proposal until compile + simulation evidence exists on the target simulator.
+- **Wake-up rule (as implemented):** `publish()` toggles `obs_tick` with a nonblocking assignment and `get_transfer()` waits on `@(obs_tick or posedge PCLK)`. On a compliant simulator the caller therefore wakes in the completion time step, after every active process. The `PCLK` term only guarantees progress. Verilator 5.020 misses the `obs_tick` wake-up for a parameterized interface reached through a port and delivers one `PCLK` later, with identical content and cycle stamps (RISK-002).
+- Validated so far: Verilator 5.020 directed smoke (0 and 2 wait states, back-to-back, `PSTRB`, `PSLVERR`; exact publication count). Not yet run on a 4-state/commercial simulator.
 
-## 8. Driver BFM behaviour [ASSUMPTION]
+## 8. Driver BFM behaviour [ASSUMPTION; implemented in `apb_driver_bfm_if`]
 
 - Drives on the `PCLK` rising edge through a clocking block. It enters ACCESS after one SETUP cycle and holds every APB-R04 signal stable until `PREADY` is sampled HIGH (or the APB2 default of `PREADY`=1 applies).
 - Back-to-back: if the next item has `idle_cycles_before == 0`, ACCESS goes straight to SETUP (APB-R05).
-- **Drive release:** when the driver BFM is not enabled (passive instance) its outputs are `'z`, and `apb_if` uses resolved nets. A passive instance therefore cannot contend with another Requester on the same bus (ADR-002 acceptance "no drive activity while configured passive").
+- **Drive release:** when the driver BFM is not enabled (passive instance) its outputs are `'z`, and `apb_if` uses resolved nets. A passive instance therefore cannot contend with another Requester on the same bus (ADR-002 acceptance "no drive activity while configured passive"). Under `VERILATOR` only, released outputs read 0 (tool limitation, RISK-009); release is unverified until a 4-state run.
+- **No dynamic processes:** `do_transfer()` uses no `fork`/`disable fork`. Reset is checked at every `PCLK` edge (RST-3), while an `always @(PRESETn)` block idles the pins as soon as reset asserts (RST-1). This replaced a `fork…join_any` watchdog that crashed Verilator 5.020, and it is also friendlier to emulation transactors.
+- **Completion handoff:** `do_transfer()` returns at the completion edge after scheduling the IDLE values with NBAs; an immediate next call with `idle_cycles == 0` overrides them with its SETUP values in the same time step, giving the back-to-back transfer (verified: SETUP at completion cycle + 1).
 
 ---
 
-## 9. Package and compile dependencies (proposed)
+## 9. Package and compile dependencies
 
 ```text
-HDL compilation units (no UVM, no packages required):
-  hdl/apb_if.sv            hdl/apb_driver_bfm_if.sv            hdl/apb_monitor_bfm_if.sv
+HDL compilation units (no UVM):
+  hdl/apb_bfm_pkg.sv   types only: revision, features, status, fault and monitor-error enums
+    └─> hdl/apb_if.sv   hdl/apb_driver_bfm_if.sv   hdl/apb_monitor_bfm_if.sv
         ^ ordinary signal ports wired in examples/apb_hdl_top.sv (ADR-002 §7)
 
 HVL packages:
-  uvm_pkg
-    └─> apb_api_pkg       (hvl/types, hvl/api: enums, apb_transaction, drive/observe proxy bases)
+  uvm_pkg, apb_bfm_pkg
+    └─> apb_api_pkg       (hvl/types, hvl/api: apb_transaction, drive/observe proxy bases)
           ├─> apb_uvc_pkg      (hvl/config, hvl/agent, hvl/sequences, hvl/coverage)
           └─> apb_adapter_pkg  (hvl/adapter: width-specialized proxies; references the
                                 BFM interface types via virtual interface handles)
@@ -236,21 +240,21 @@ Integration (examples/):
                  constructs adapters, fills one apb_agent_cfg per instance, uvm_config_db::set once, run_test()
 ```
 
-Compile order: `uvm_pkg` → HDL interfaces → `apb_api_pkg` → `apb_uvc_pkg` → `apb_adapter_pkg` → examples/tests. `apb_uvc_pkg` must not import `apb_adapter_pkg`; nothing in the core imports example or test code.
+Compile order: `apb_bfm_pkg` → HDL interfaces → `uvm_pkg` → `apb_api_pkg` → `apb_uvc_pkg` → `apb_adapter_pkg` → examples/tests. `apb_uvc_pkg` must not import `apb_adapter_pkg`; nothing in the core imports example or test code.
 
 ## 10. File manifest and milestone split
 
 | Step (`CLAUDE_GENERATION_PROMPT.md`) | Files | Features implemented |
 |---|---|---|
-| 2 HDL | `hdl/apb_if.sv`, `hdl/apb_driver_bfm_if.sv`, `hdl/apb_monitor_bfm_if.sv`, `examples/apb_example_slave.sv`, `examples/apb_hdl_top.sv`, `filelists/apb_hdl.f` | Full APB5 pin superset declared; APB2/3/4 behaviour implemented; APB5 pins driven/treated per defaults |
-| 3 HVL API | `hvl/types/apb_types.sv`, `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
+| 2 HDL (**done**) | `hdl/apb_bfm_pkg.sv`, `hdl/apb_if.sv`, `hdl/apb_driver_bfm_if.sv`, `hdl/apb_monitor_bfm_if.sv`, `examples/apb_example_slave.sv`, `examples/apb_hdl_top.sv`, `tests/apb_hdl_smoke_runner.sv`, `tests/apb_hdl_smoke.sv`, `filelists/apb_hdl.f`, `filelists/apb_hdl_smoke.f`, `scripts/{run_hdl_smoke.sh,slang_elab.py,make_eda_bundle.py}`, `README.md` | Full APB5 pin superset declared; APB2/3/4 behaviour implemented; APB5 pins driven/treated per defaults |
+| 3 HVL API | `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
 | 4 HVL concrete | `hvl/adapter/apb_drive_proxy.sv`, `hvl/adapter/apb_monitor_proxy.sv`, `hvl/pkg/apb_adapter_pkg.sv` | |
 | 5 UVM | `hvl/config/apb_agent_cfg.sv`, `hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv`, `hvl/sequences/*.sv`, `hvl/coverage/apb_coverage.sv`, `hvl/pkg/apb_uvc_pkg.sv`, `filelists/{apb_hvl,apb_poc}.f`, `examples/apb_hvl_top.sv` | |
 | 6 Tests | `tests/apb_poc_test.sv`, `tests/apb_fault_injection_test.sv`, `scripts/run_poc.sh` | M1 tests: APB3/APB4 |
 | later M2 | same files | APB5 `PWAKEUP` + user signals |
 | later M3 | same files + `assertions/` | APB5 parity generation/checking + parity fault injection |
 
-`hvl/types/apb_types.sv` (enums, macros) is an addition to the DIRECTORY_ARCHITECTURE plan. It is needed so enums are shared by transaction, proxies and cfg.
+Additions to the DIRECTORY_ARCHITECTURE plan: `hdl/apb_bfm_pkg.sv` replaces the earlier `hvl/types/apb_types.sv` idea. The enums must be shared by the HDL BFMs **and** the HVL adapters, so they live in a types-only package with no UVM, no classes and no timing. `tests/apb_hdl_smoke*.sv`, the HDL smoke filelist and the three scripts support the step 2 acceptance run.
 
 ## 11. Smallest runnable task and acceptance test
 
@@ -261,7 +265,7 @@ Acceptance:
 2. HDL-only directed smoke without UVM, on a simulator: per instance, one write and one read-back with 0 and 2 wait states. The monitor queue must receive exactly the expected transfers with correct values and no extra publications.
 3. Negative control: a deliberately broken BFM (e.g. `PADDR` changed during a wait state) must be caught by the monitor check.
 
-Item 1 can run in this container now. Items 2–3 need a simulator (**Q3**).
+**Result (2026-10-29):** all three items pass with slang 12.1.0 and Verilator 5.020, plus the DW=64 extension and a mutation check. The logs and the exact commit are in `evidence/APB-003a/` and `WORK_STATUS.md`. Not yet covered: reset during a transfer, passive instance with the driver released, APB2/APB3 configurations, and any 4-state behaviour.
 
 ---
 
