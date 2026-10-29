@@ -265,7 +265,7 @@ Acceptance:
 2. HDL-only directed smoke without UVM, on a simulator: per instance, one write and one read-back with 0 and 2 wait states. The monitor queue must receive exactly the expected transfers with correct values and no extra publications.
 3. Negative control: a deliberately broken BFM (e.g. `PADDR` changed during a wait state) must be caught by the monitor check.
 
-**Result (2026-10-29):** all three items pass with slang 12.1.0 and Verilator 5.020, plus the DW=64 extension and a mutation check. The logs and the exact commit are in `evidence/APB-003a/` and `WORK_STATUS.md`. Not yet covered: reset during a transfer, passive instance with the driver released, APB2/APB3 configurations, and any 4-state behaviour.
+**Result (2026-10-29):** all three items reported PASS with slang 12.1.0 and Verilator 5.020, plus the DW=64 extension and a mutation check. These runs predate the toolchain approval gate and were not explicitly approved, so they are pending owner ratification (`WORK_STATUS.md`). The logs and the exact commit are in `evidence/APB-003a/` and `WORK_STATUS.md`. Not yet covered: reset during a transfer, passive instance with the driver released, APB2/APB3 configurations, and any 4-state behaviour.
 
 ---
 

@@ -11,6 +11,10 @@
 # Usage: scripts/run_hdl_smoke.sh [output_dir]     (default: build/hdl_smoke)
 # Needs: python3 with pyslang, verilator (>= 5.020) on PATH.
 # Exit status 0 only if every step reports PASS.
+#
+# Toolchain gate (ARCHITECTURE_CONTRACT): this script launches slang and
+# Verilator. Its presence is not approval to run it; AI contributors need
+# explicit owner approval of these tools and commands first.
 # -----------------------------------------------------------------------------
 set -u
 

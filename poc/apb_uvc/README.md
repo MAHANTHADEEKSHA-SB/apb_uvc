@@ -2,7 +2,7 @@
 
 One reusable APB Requester (master) UVC. Two instances of the same source — **AW=32/DW=32** and **AW=32/DW=16** — run side by side to show width independence. **DW=64** is available only as an opt-in, non-standard extension (ADR-001 Amendment A1).
 
-**Status:** milestone M1, step 2 (HDL) only. The signal interface, the driver and monitor BFMs, an example Completer, the HDL top and an HDL-only smoke test exist and pass (see *Evidence*). HVL proxies, UVM components, sequences and coverage are **not written yet**.
+**Status:** milestone M1, step 2 (HDL) only. The signal interface, the driver and monitor BFMs, an example Completer, the HDL top and an HDL-only smoke test exist. They passed slang/Verilator runs that predate the toolchain approval gate and still await owner ratification (`../../docs/dv-architecture/WORK_STATUS.md`). HVL proxies, UVM components, sequences and coverage are **not written yet**.
 
 Governing documents: `../../docs/dv-architecture/` — `APB_PROTOCOL_CONTRACT.md` (pins, rules, reset, transaction), `ARCHITECTURE_CONTRACT.md`, ADR-001, ADR-002, `WORK_STATUS.md`.
 
@@ -58,6 +58,8 @@ BFM API used by the (future) HVL adapters:
 | monitor | `get_error_count(code)` / `get_total_errors()` | protocol violations by `apb_mon_error_e` |
 
 ## Running the HDL smoke
+
+Inside this repository's AI workflow, no tool below may be run without explicit owner approval of the tool, version and commands (ARCHITECTURE_CONTRACT toolchain gate).
 
 ```sh
 scripts/run_hdl_smoke.sh [output_dir]   # needs python3 + pyslang, verilator >= 5.020

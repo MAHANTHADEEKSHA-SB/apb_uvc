@@ -88,6 +88,21 @@
 - Verilator is 2-state and does not support `'z` driven into interface nets (`Unsupported LHS tristate construct: VARXREF`). Under `VERILATOR`, `apb_driver_bfm_if` therefore drives released outputs as 0. These are untested so far: the passive-instance release to `'z` (section 8), the monitor's X/Z checks (`PSEL_XZ`, `CONTROL_XZ`, `PREADY_XZ` — RISK-008), and the 4-state round trip of `PRDATA`.
 - **Evidence required:** the same smoke plus a release/X-injection test on a 4-state simulator, with the tool version and log.
 
+### RISK-010 — Source changes made for unapproved tools (toolchain gate rule 5)
+- **Status:** OPEN — owner disposition required. Raised when the toolchain gate (`dev` PR #3) was merged on 2026-10-29.
+- The gate forbids rewriting valid SystemVerilog/UVM solely for an unapproved tool's limitations. These edits were made while running slang 12.1.0 and Verilator 5.020 without explicit approval:
+
+| ID | File | Change | Driven by | Standard-valid before? | Proposed disposition |
+|---|---|---|---|---|---|
+| C1 | `hdl/apb_driver_bfm_if.sv` | `` `ifdef VERILATOR `` makes released outputs read 0 instead of `'z` | Verilator: no `'z` into interface nets | yes | Keep only if Verilator is approved; otherwise remove (standard path unchanged either way) |
+| C2 | `hdl/apb_driver_bfm_if.sv` | `fork…join_any` reset watchdog replaced by a per-`PCLK` reset check; an `always @(PRESETn)` block still idles the pins immediately | Verilator internal fault (V3Fork) | yes | Keep on its own merits (no dynamic processes, emulation-friendlier), **or** restore the fork version. Behavioural difference: `do_transfer()` returns `RESET_ABORTED` at the next `PCLK` edge, not at the reset edge |
+| C3 | `hdl/apb_monitor_bfm_if.sv` | `get_transfer()` waits on `@(obs_tick or posedge PCLK)` (NBA toggle) instead of a named event | Verilator lost wake-up | yes | Keep the NBA toggle (deterministic same-step delivery); the `posedge PCLK` term is the Verilator workaround and can go if Verilator is not approved |
+| C4 | `examples/apb_example_slave.sv` | Memory zero-filled at time 0 and no longer cleared by `PRESETn` | Verilator BLKLOOPINIT | yes | Example fixture only; keep or restore reset clearing |
+| C5 | `tests/apb_hdl_smoke*.sv` | Width-parameterized class runner replaced by a module `bind`-ed into `apb_hdl_top`; width check moved from elaboration to run time | Verilator internal fault + generic-port limitation | yes | Test only; keep or restore the class runner |
+| C6 | `hdl/*`, `examples/*`, `tests/*` | Named generate blocks, sign/width-clean comparisons, word-organised slave memory | slang warnings | yes | Lint hygiene, no behaviour change; propose keep |
+
+- None of these touch an accepted ADR decision; the HVL adapters (ADR-001) are not written yet, and the Verilator class defect (RISK-001) has **not** been used to change ADR-001.
+
 ## Closed findings
 
 _None. No SV/UVM source has been generated, compiled or simulated as part of this documentation review._

@@ -1,5 +1,7 @@
 # Evidence — APB-003a (HDL step 2)
 
+> **Toolchain gate:** the slang 12.1.0 and Verilator 5.020 runs below were executed on 2026-10-29 **before** the toolchain approval gate (ARCHITECTURE_CONTRACT "Toolchain selection and execution gate", `dev` PR #3) reached this branch, and **without explicit owner approval of those tools**. Their outcomes are recorded as observed, but they are **not accepted as gate evidence** until the owner approves the tools and commands (see `WORK_STATUS.md` *Toolchain approval request*) or the checks are re-run on an approved tool. Source edits made for these tools are listed in `REVIEW_FEEDBACK.md` RISK-010.
+
 | Item | Value |
 |---|---|
 | Source commit | `50607121dfc980ac89bbb768d30e768c9df98e68` (clean tree) |
