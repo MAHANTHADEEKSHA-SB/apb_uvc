@@ -2,12 +2,14 @@
 
 **Checkpoint date:** 2026-10-29
 **Repository:** https://github.com/MAHANTHADEEKSHA-SB/apb_uvc
-**Branch:** `feature/dv-architecture-handoff` (from `dev`; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
+**Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`, which merged `feature/dv-architecture-handoff`; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
 **Current commit SHA:** read actual `git rev-parse HEAD` / branch HEAD; this file cannot self-reference its own commit.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
 **Phase:** APB-only target architecture documented; **POC implementation NOT STARTED**.
 **Tool results:** No RTL/UVM compilation, simulation, regression or emulation evidenced by these docs.
 **Next implementer:** Claude or another authorized model/engineer.
+**Active task:** APB-001 — protocol contract.
+**Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
 
