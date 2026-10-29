@@ -1,13 +1,29 @@
-# AI contributor guide — DV architecture POC
+# AI contributor guide — single APB UVC POC
 
-Scope: this guide applies to the experimental verification architecture under `docs/dv-architecture/` and any separately approved POC implementation. The existing APB UVC is not subject to a migration by default.
+**Scope:** Exactly one APB master UVC developed under `poc/apb_uvc/`; its 32-bit and 64-bit configurations are different **instances of the same component**. The repository's root-level legacy APB sources are not targets of this POC. Do not generate other protocols/UVCs, a generic verification framework or bridge scoreboards.
 
-Before modifying the POC, read `ARCHITECTURE_CONTRACT.md`, `WORK_STATUS.md`, `REVIEW_FEEDBACK.md`, ADR-001, ADR-002 and `DIRECTORY_ARCHITECTURE.md`. Claude should additionally read `CLAUDE_GENERATION_PROMPT.md`.
+## Mandatory read before changes
 
-Inspect `git status`, current branch, commit SHA and actual source files. Check that status and review evidence refer to that same commit. If a discrepancy exists, document it before changing anything.
+1. `docs/dv-architecture/ARCHITECTURE_CONTRACT.md`
+2. `docs/dv-architecture/ADR-001-HVL-PROXY-PLACEMENT.md` and `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`
+3. `docs/dv-architecture/DIRECTORY_ARCHITECTURE.md`
+4. `docs/dv-architecture/WORK_STATUS.md`
+5. `docs/dv-architecture/REVIEW_FEEDBACK.md`
+6. `docs/dv-architecture/CLAUDE_GENERATION_PROMPT.md` when implementing.
 
-Perform one bounded task at a time. Document changed files and results; distinguish generated code, reviewed code, compilation, simulation and validated behavior. Real compiler and test logs, not LLM confidence, determine validation status. Record exact commands and versions.
+## Required workflow
 
-Preserve architecture decisions unless a change is explicitly approved. Use public papers as methodology references, create original code, and do not introduce confidential third-party code.
+- Inspect actual branch, exact SHA, `git status --short`, source manifest and available tools before changing anything.
+- Record APB revision, explicit signal subset, AW/DW widths, reset policy, API transaction encoding, clocking, and BFM-to-pin wiring before declaring compile readiness.
+- Work on **one smallest testable APB milestone**; keep new code within `poc/apb_uvc/`. Do not touch original root-level APB UVC code.
+- Preserve approved architectural decisions unless a documented, approved ADR amendment is provided. If a rule seems invalid, demonstrate a counterexample and propose change, don't silently sidestep it.
+- Record all files changed, tool versions, exact compile/sim commands, logs, and failures in `WORK_STATUS.md`. Use **NOT RUN** instead of guessing.
+- Record independent ChatGPT/Gemini issues with exact reviewed SHA, file/line, severity and retest evidence in `REVIEW_FEEDBACK.md`.
+- Before context/token exhaustion, checkpoint the last known working stage, current task and next exact step. Other AIs must be able to resume from Git + Markdown alone.
+- Commit only to an authorized feature branch, never force-push, overwrite shared history or merge without authorization.
 
-Checkpoint unfinished work in `WORK_STATUS.md` and review findings in `REVIEW_FEEDBACK.md`. Only push to approved feature branches. No force pushes or modification of existing APB source without a separate task.
+## Validation philosophy
+
+Architecture choices informed by public DVCon literature are **not** simulator proofs. SV syntax, package order, APB timing, passive operation, 32/64 isolation and fault detection require executed checks. Do not fabricate successful results, claim emulation compatibility, or bring confidential employer/client code into this repo.
+
+**Handoff precedence:** actual checked-out code + executed logs establish observed behavior; accepted contract/ADRs establish intended design. Reconcile contradictions explicitly.
