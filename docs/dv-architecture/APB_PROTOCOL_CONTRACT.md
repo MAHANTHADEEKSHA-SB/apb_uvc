@@ -182,13 +182,14 @@ IHI 0024D only says that `PRESETn` is active-LOW and normally connected to the s
 | `wdata`, `rdata` | `logic [`APB_MAX_DATA_WIDTH`-1:0]` | default 32 per [IHI §2.1.2]; set `+define+APB_MAX_DATA_WIDTH=64` for the extension |
 | `strb` | `logic [`APB_MAX_DATA_WIDTH`/8-1:0]` | |
 | `prot` | `logic [2:0]` | |
-| `auser`, `wuser`, `ruser`, `buser` | `logic [`APB_MAX_*_USER_WIDTH`-1:0]` | default maxima 128 / 32 / 32 / 16, overridable by `+define+` |
+| `auser`, `wuser`, `ruser`, `buser` | `logic [`APB_MAX_*_USER_WIDTH`-1:0]` | **M2, not in the class yet**; planned maxima 128 / 32 / 32 / 16, overridable by `+define+` |
 | `sel` | `int unsigned` | index into `PSEL[NUM_SEL-1:0]` |
-| `slverr` | `bit` | observed `PSLVERR` |
-| `status` | `apb_status_e` {`APB_OK`, `APB_SLVERR`, `APB_RESET_ABORTED`, `APB_TIMEOUT`} | |
-| `idle_cycles_before` | `rand int unsigned` | 0 means back-to-back (APB-R05) |
+| `slverr` | `logic` | observed `PSLVERR`, 4-state (was `bit` in the draft; changed so X/Z is kept) |
+| `status` | `apb_bfm_pkg::apb_bfm_status_e` | one encoding shared with the BFM: `OK`, `SLVERR`, `RESET_ABORTED`, `TIMEOUT`, `NOT_ENABLED`, `BAD_REQUEST`, `FAULT_INJECTED` |
+| `idle_cycles` | `rand int unsigned` | IDLE cycles before SETUP; 0 means back-to-back (APB-R05) |
 | `wait_states`, `start_cycle`, `end_cycle` | observation metadata | filled by the monitor |
-| `bus_data_width`, `bus_addr_width`, `instance_id` | observation metadata | which bits are meaningful, and which instance produced it |
+| `bus_addr_width`, `bus_data_width`, `bus_num_sel`, `bus_has_pstrb`, `bus_has_pprot` | bus context (not randomized) | set from `apb_agent_cfg` by `apb_base_seq::new_item()` before randomization, and by the adapters on every item; constraints keep values legal for that bus |
+| `instance_name` | `string` | name of the adapter that drove or observed the item |
 
 ### Lossless and 4-state rules
 
@@ -247,10 +248,10 @@ Compile order: `apb_bfm_pkg` → HDL interfaces → `uvm_pkg` → `apb_api_pkg` 
 | Step (`CLAUDE_GENERATION_PROMPT.md`) | Files | Features implemented |
 |---|---|---|
 | 2 HDL (**written; compile NOT RUN**) | `hdl/apb_bfm_pkg.sv`, `hdl/apb_if.sv`, `hdl/apb_driver_bfm_if.sv`, `hdl/apb_monitor_bfm_if.sv`, `examples/apb_example_slave.sv`, `examples/apb_hdl_top.sv`, `tests/apb_hdl_smoke.sv`, `filelists/apb_hdl.f`, `filelists/apb_hdl_smoke.f`, `scripts/{slang_elab.py,make_eda_bundle.py}`, `README.md` | Full APB5 pin superset declared; APB2/3/4 behaviour implemented; APB5 pins driven/treated per defaults |
-| 3 HVL API | `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
-| 4 HVL concrete | `hvl/adapter/apb_drive_proxy.sv`, `hvl/adapter/apb_monitor_proxy.sv`, `hvl/pkg/apb_adapter_pkg.sv` | |
-| 5 UVM | `hvl/config/apb_agent_cfg.sv`, `hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv`, `hvl/sequences/*.sv`, `hvl/coverage/apb_coverage.sv`, `hvl/pkg/apb_uvc_pkg.sv`, `filelists/{apb_hvl,apb_poc}.f`, `examples/apb_hvl_top.sv` | |
-| 6 Tests | `tests/apb_poc_test.sv`, `tests/apb_fault_injection_test.sv`, `scripts/run_poc.sh` | M1 tests: APB3/APB4 |
+| 3 HVL API (**written; compile NOT RUN**) | `hvl/types/apb_defines.svh`, `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
+| 4 HVL concrete (**written; compile NOT RUN**) | `hvl/adapter/apb_drive_proxy.sv`, `hvl/adapter/apb_monitor_proxy.sv`, `hvl/pkg/apb_adapter_pkg.sv` | |
+| 5 UVM (**written; compile NOT RUN**) | `hvl/config/apb_agent_cfg.sv`, `hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv`, `hvl/sequences/{apb_base_seq,apb_random_seq}.sv`, `hvl/coverage/apb_coverage.sv`, `hvl/pkg/apb_uvc_pkg.sv`, `filelists/{apb_hvl,apb_poc}.f`, `examples/apb_hvl_top.sv` | |
+| 6 Tests (**written; NOT RUN**) | `tests/apb_poc_test_pkg.sv` with `apb_poc_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv`. No `run_poc.sh`: simulator commands depend on the approved tool | M1 tests: APB4; passive, reset and APB2/APB3 tests still missing (WORK_STATUS *Known gaps*) |
 | later M2 | same files | APB5 `PWAKEUP` + user signals |
 | later M3 | same files + `assertions/` | APB5 parity generation/checking + parity fault injection |
 

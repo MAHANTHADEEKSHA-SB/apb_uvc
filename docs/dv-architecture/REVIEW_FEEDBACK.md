@@ -41,7 +41,7 @@
   - **Tool defect found:** Verilator 5.020 aborts with an internal fault (`V3Broken`: broken `m_ifacep` link after `deadifyModules`) when **two specializations of a parameterized class** each declare a parameterized virtual-interface type (repro r3/r4). That is exactly the ADR-001 `drive_adapter #(DW)` pattern. A non-parameterized abstract base plus per-width non-parameterized concrete classes works (r6).
   - Verilator 5.020 also rejects a generic interface port bound to a hierarchical instance (`expected 'apb_driver_bfm_if' … is a different interface 'apb_driver_bfm_if__D10'`); binding the consumer into the instantiating module works.
   - **Consequence:** Verilator 5.020 cannot validate the ADR-001 adapter layer (step 4). Since the RISK-010 reverts, it cannot build the generic HDL smoke either (class runner, `fork` in the driver, `'z` release). Use slang for elaboration and a commercial simulator (EDA Playground) or a newer Verilator for simulation; do not change ADR-001 or the sources on the basis of a tool bug.
-- **Status:** OPEN — HDL half evidenced; the HVL adapter half is not yet written.
+- **Status:** OPEN — the HVL adapters are now written (`hvl/adapter/*`, commit `30cf97d`) but never compiled. The first approved compile of `filelists/apb_poc.f` (two specializations of each adapter in one image) is the decisive check.
 
 ### RISK-002 — APB handshake scheduling and observation
 - **Status:** OPEN.
@@ -115,6 +115,12 @@
 | C6 | Kept: named generate blocks, sign/width-clean comparisons, word-organised slave memory |
 | — | Removed `scripts/run_hdl_smoke.sh` (Verilator-specific runner that cannot build the generic sources) |
 | — | Kept real test-bug fixes (they are not tool-specific): monitor count checked only after draining the expected observations; no initializer on a static variable in procedural code |
+
+### RISK-011 — HVL/UVM layer written without any compilation
+- **Status:** OPEN; raised 2026-10-29 for commits `30cf97d`..`5b217c9`.
+- The transaction, proxy bases, adapters, UVM agent, sequences, coverage, HVL top and tests were written under the toolchain gate, with no tool approved. Only a static self-review was done (`WORK_STATUS.md` *Static self-review done*).
+- Constructs most likely to need attention are listed in `WORK_STATUS.md` *First-compile watch list*. Each failure must be classified as source bug, standard violation or tool limitation, and fixed without tool-specific code.
+- **Evidence required:** an approved elaboration of `filelists/apb_poc.f` (slang + UVM library, or a commercial simulator) with 0 errors, then the four UVM tests passing with logs and SHA.
 
 ## Closed findings
 

@@ -2,16 +2,30 @@
 
 **Checkpoint date:** 2026-10-29
 **Repository:** https://github.com/MAHANTHADEEKSHA-SB/apb_uvc
-**Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`, which merged `feature/dv-architecture-handoff`; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
-**Current commit SHA:** read actual `git rev-parse HEAD` / branch HEAD; this file cannot self-reference its own commit.
+**Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`; `dev` merged back in at `91c369f` for the toolchain gate; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
+**Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest source commit described here: `5b217c97cf89bc551914f1f43ff89842f85f620a`.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
-**Phase:** M1 step 2 (HDL) **written as portable IEEE 1800-2017 SystemVerilog; compile/simulation NOT RUN** (toolchain approval pending). HVL (steps 3–5) NOT STARTED. Protocol contract PROPOSED, with Q1/Q3 decided by the owner.
-**Tool results:** none for the current sources. Unapproved slang/Verilator runs at `5060712` are superseded, because that revision's Verilator workarounds were reverted per owner decision (RISK-010). No tool runs until the owner approves one.
+**Phase:** M1 sources for steps 2–6 **written** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM. **Nothing compiled or simulated** (toolchain approval pending).
+**Tool results:** none for the current sources. Unapproved slang/Verilator runs at `5060712` are superseded (RISK-010).
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** toolchain approval pending (see *Toolchain approval request*). APB-004 source generation may proceed meanwhile; its compile stages stay NOT RUN.
+**Active task:** owner toolchain approval (see *Toolchain approval request*), then first compile of the POC (APB-004/005).
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
+
+## Resume here (new session, other model or engineer)
+
+1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file.
+2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
+3. **Owner rules in force:**
+   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version and commands. Nothing is approved yet.
+   - **No tool-specific workarounds:** no `` `ifdef <TOOL> ``, tool pragmas or tool-motivated rewrites. Log tool shortfalls in `REVIEW_FEEDBACK.md` instead.
+   - Width pair **DW=32 + DW=16**; DW=64 only behind `APB_ENABLE_DW64_EXTENSION` / `ALLOW_NONSTANDARD_DW` / `allow_nonstandard_width`, never reported as compliant.
+   - Revisions APB2–APB5 are per-instance configuration; default APB4 with `PSTRB` and `PPROT`.
+   - Do not touch the root-level legacy `apb_*.sv` files. No force-push, no merge into `dev`/`main`.
+   - Mark every unexecuted stage **NOT RUN**.
+4. **What exists:** see *Source manifest*. **What is missing:** see *Known gaps*.
+5. **Next exact step:** see the handoff block at the end.
 
 ## Approved scope
 
@@ -21,82 +35,137 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 
 | ID | Work | Status | Evidence or caveat |
 |---|---|---|---|
-| DOC-001 | ADR-001: HVL concrete proxies | ACCEPTED_FOR_POC | `ADR-001-HVL-PROXY-PLACEMENT.md`; not compiler validated |
-| DOC-002 | ADR-002: distinct drive/observe APIs; 2 BFMs / 1 APB signal interface | ACCEPTED_LOGIC | `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`; wiring unresolved pending compile |
-| DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md`, `CLAUDE_GENERATION_PROMPT.md` |
-| DOC-004 | APB-001 protocol contract (revision matrix, pins, rules, reset, transaction, deps, manifest) | PROPOSED | `APB_PROTOCOL_CONTRACT.md`; traced to ARM IHI 0024D; open questions Q1–Q5 |
-| IMP-001 | POC APB interface and BFMs | WRITTEN_M1 (APB2/3/4), NOT RUN | `poc/apb_uvc/hdl/*`; portable sources after RISK-010 reverts; `evidence/APB-003a/` superseded; 4-state/release unverified (RISK-009); APB5 features M2/M3 |
-| IMP-002 | Proxy base and concrete adapters | NOT_STARTED | No compile evidence |
-| IMP-003 | Non-parameterized UVM APB components | NOT_STARTED | No compile evidence |
-| IMP-004 | Single APB UVC 32/16 dual-instance test | NOT_STARTED | No simulation evidence |
-| IMP-005 | Negative tests, independent reviews | NOT_STARTED | No execution or review results |
+| DOC-001 | ADR-001: HVL concrete proxies | ACCEPTED_FOR_POC, amended A1 | `ADR-001-HVL-PROXY-PLACEMENT.md`; not compiler validated |
+| DOC-002 | ADR-002: distinct drive/observe APIs; 2 BFMs / 1 APB signal interface | ACCEPTED_LOGIC | `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`; wiring not yet compiled |
+| DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md` v0.10, `CLAUDE_GENERATION_PROMPT.md` |
+| DOC-004 | APB-001 protocol contract | PROPOSED | `APB_PROTOCOL_CONTRACT.md`; Q1/Q3 decided; Q2/Q4/Q5 on proposed defaults |
+| IMP-001 | APB interface and BFMs | WRITTEN_M1 (APB2/3/4), NOT RUN | `poc/apb_uvc/hdl/*`; 4-state/release unverified (RISK-009); APB5 features M2/M3 |
+| IMP-002 | Proxy bases and concrete adapters | WRITTEN, NOT RUN | `hvl/api/*`, `hvl/adapter/*`; first compile is the main RISK-001 check |
+| IMP-003 | Non-parameterized UVM APB components | WRITTEN, NOT RUN | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
+| IMP-004 | 32/16 dual-instance UVM test | WRITTEN, NOT RUN | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv` |
+| IMP-005 | Negative tests | WRITTEN, NOT RUN | fault injection (3 modes), cfg legality, unfit-width; independent reviews NOT_STARTED |
 
 ## Source manifest
 
-| Target path under `poc/apb_uvc/` | Owner | Status |
-|---|---|---|
-| `hdl/apb_bfm_pkg.sv` | Types shared by BFMs and HVL adapters (no UVM) | DONE (added; contract §10) |
-| `hdl/apb_if.sv` | APB5 superset pins/modports; width checks | DONE |
-| `hdl/apb_driver_bfm_if.sv` | Master protocol drive/timing, release, fault modes | WRITTEN_M1, NOT RUN |
-| `hdl/apb_monitor_bfm_if.sv` | Passive observation, protocol checks, queue | WRITTEN_M1, NOT RUN |
-| `hvl/types/apb_transaction.sv` | Width-independent packet representation | NOT_STARTED |
-| `hvl/api/apb_{drive,monitor}_proxy_base.sv` | Abstract proxy pair | NOT_STARTED |
-| `hvl/adapter/apb_{drive,monitor}_proxy.sv` | Width-specialized HVL concrete adapters | NOT_STARTED |
-| `hvl/config/apb_agent_cfg.sv` | Per-instance cfg | NOT_STARTED |
-| `hvl/agent/*.sv` | Non-parameterized driver/monitor/sequencer/agent | NOT_STARTED |
-| `hvl/pkg/*.sv` | API/UVM/adapter package definitions | NOT_STARTED |
-| `filelists/apb_hdl.f`, `filelists/apb_hdl_smoke.f` | HDL compile order (use `-F`) | DONE; `apb_hvl.f`, `apb_poc.f` NOT_STARTED |
-| `examples/apb_example_slave.sv`, `examples/apb_hdl_top.sv` | Example Completer; A DW=32 + B DW=16 (+C DW=64 ext.) | DONE; `apb_hvl_top.sv` NOT_STARTED |
-| `tests/apb_hdl_smoke.sv` | HDL-only directed + fault-injection smoke (class runner, typed virtual BFM handles) | WRITTEN, NOT RUN; UVM tests NOT_STARTED |
-| `scripts/slang_elab.py`, `scripts/make_eda_bundle.py` | slang wrapper (needs approval), EDA Playground bundle (plain text) | WRITTEN; `run_hdl_smoke.sh` removed (Verilator-specific) |
-| `README.md` | Consumer integration, BFM API, run instructions | DONE (HDL scope) |
+All paths under `poc/apb_uvc/`. **Every file is NOT RUN** (never compiled in its current form).
 
-The original root-level `apb_*.sv` implementation exists and is **out of scope for modification**. Do not confuse that with implementation of the new `poc/apb_uvc/` design.
+| Path | Content | Status |
+|---|---|---|
+| `hdl/apb_bfm_pkg.sv` | Types shared by BFMs and adapters (revision, features, status, fault, monitor-error enums); no UVM | WRITTEN |
+| `hdl/apb_if.sv` | APB5 superset pins, modports, width legality checks | WRITTEN |
+| `hdl/apb_driver_bfm_if.sv` | Requester drive BFM: SETUP/ACCESS, wait states, back-to-back, `'z` release, reset abort (`fork…join_any`), 3 fault modes | WRITTEN_M1 |
+| `hdl/apb_monitor_bfm_if.sv` | Passive BFM: clocking-block sampling, protocol checks, bounded queue, `get_transfer()` with named event | WRITTEN_M1 |
+| `hvl/types/apb_defines.svh` | `APB_MAX_ADDR_WIDTH` 32, `APB_MAX_DATA_WIDTH` 32 (64 with the extension switch) | WRITTEN |
+| `hvl/types/apb_transaction.sv` | `apb_dir_e`, `apb_transaction` (4-state, bus-context constraints, copy/compare/print) | WRITTEN |
+| `hvl/api/apb_drive_proxy_base.sv` | Abstract drive capability (+ POL-01/02 and X-wdata policies) | WRITTEN |
+| `hvl/api/apb_monitor_proxy_base.sv` | Abstract observe capability (+ error and activity counters) | WRITTEN |
+| `hvl/adapter/apb_drive_proxy.sv` | `apb_drive_proxy #(AW,DW,NUM_SEL,user widths)`: typed vif, lossless/legality request checks | WRITTEN |
+| `hvl/adapter/apb_monitor_proxy.sv` | `apb_monitor_proxy #(…,QUEUE_DEPTH)`: typed vif, builds a new transaction per transfer | WRITTEN |
+| `hvl/config/apb_agent_cfg.sv` | Per-instance cfg; `legality_error()` / `validate()` (CFG-01..06, M1 limits) | WRITTEN |
+| `hvl/agent/apb_sequencer.sv`, `apb_driver.sv`, `apb_monitor.sv`, `apb_agent.sv` | Non-parameterized UVM components | WRITTEN |
+| `hvl/coverage/apb_coverage.sv` | Protocol coverage (dir, waits, PSLVERR, strobe kind, b2b, PPROT, crosses) | WRITTEN |
+| `hvl/sequences/apb_base_seq.sv`, `apb_random_seq.sv` | Helpers `do_write/do_write_strb/do_read`; random window sequence | WRITTEN |
+| `hvl/pkg/apb_api_pkg.sv`, `apb_uvc_pkg.sv`, `apb_adapter_pkg.sv` | Packages (compile in this order after HDL + uvm_pkg) | WRITTEN |
+| `examples/apb_example_slave.sv` | APB4 Completer fixture (wait states = PADDR[5:4], PSLVERR ≥ 0x100) | WRITTEN |
+| `examples/apb_hdl_top.sv` | Instances A (DW=32) + B (DW=16), own clocks/resets; C (DW=64) under the extension switch | WRITTEN |
+| `examples/apb_hvl_top.sv` | Explicit adapter construction, one cfg per instance, single `uvm_config_db::set`, `run_test` | WRITTEN |
+| `tests/apb_hdl_smoke.sv` | HDL-only directed + fault smoke (no UVM) | WRITTEN |
+| `tests/apb_poc_test_pkg.sv` + `apb_poc_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv` | UVM POC env, fixture scoreboard, tests | WRITTEN |
+| `filelists/apb_hdl.f`, `apb_hvl.f`, `apb_hdl_smoke.f`, `apb_poc.f` | Compile order; use `-F` | WRITTEN |
+| `scripts/slang_elab.py` | slang elaboration wrapper (needs approval to run) | WRITTEN |
+| `scripts/make_eda_bundle.py` | Single-file EDA Playground bundle; inlines includes (text only; exercised on `apb_poc.f` and `apb_hdl_smoke.f`) | WRITTEN |
+| `README.md` | Consumer integration, BFM + HVL API, run instructions, portability policy | WRITTEN |
+
+The original root-level `apb_*.sv` implementation exists and is **out of scope for modification**.
+
+## Tests available (none run)
+
+| Flow | Top(s) | Test / plusargs | Pass criterion |
+|---|---|---|---|
+| HDL smoke (no UVM) | `apb_hdl_smoke` | none; `+APB_FAULT=1|2|3` for negatives; `+define+APB_ENABLE_DW64_EXTENSION` | line `SMOKE_RESULT: PASS` |
+| UVM POC | `apb_hdl_top` + `apb_hvl_top` | `+UVM_TESTNAME=apb_poc_test` | `TEST_RESULT: PASS (0 errors)` |
+| UVM fault injection | same | `+UVM_TESTNAME=apb_fault_injection_test +APB_FAULT=1|2|3` | `TEST_RESULT: PASS` (A detected, B clean) |
+| UVM cfg legality | same | `+UVM_TESTNAME=apb_cfg_negative_test` | `TEST_RESULT: PASS`; 16 verdict lines `ok:` |
+| UVM width boundary | same | `+UVM_TESTNAME=apb_width_negative_test` | `TEST_RESULT: PASS` (unfit write rejected, not on the bus) |
+| DW=64 extension | add `+define+APB_ENABLE_DW64_EXTENSION` to any UVM flow | as above | agent_c also passes |
+
+## Static self-review done (2026-10-29, no tool)
+
+- Every adapter call matches the BFM task/function signatures in `hdl/apb_driver_bfm_if.sv` / `hdl/apb_monitor_bfm_if.sv` (argument order, widths, directions).
+- Every pure virtual method of both proxy bases is implemented in the concrete adapters and in the fake proxies.
+- Virtual-interface typedefs in the adapters list **all** BFM parameters (including `QUEUE_DEPTH`), so they match the `apb_hdl_top` instances that use defaults.
+- Only APIs common to UVM 1.2 and IEEE 1800.2-2017/2020 are used: `uvm_config_db`, `type_id::create`, `uvm_declare_p_sequencer`, `phase.get_objection().set_drain_time`, `uvm_root::get().set_timeout`, `uvm_report_server::get_server`, `set_report_severity_id_override`.
+- No tool names, `` `ifdef <TOOL> `` or pragmas in any source. The only `` `ifdef `` switches are the project's own `APB_ENABLE_DW64_EXTENSION` and the `apb_defines.svh` guards.
+
+## First-compile watch list (most likely to need attention)
+
+Classify any failure as **source bug**, **standard violation** or **tool limitation** (contract gate). Never add tool-specific code.
+
+1. `+incdir+` paths in `-F` filelists: some simulators resolve them relative to the filelist, others to the current directory. If includes are not found, pass the include dirs on the command line or use the EDA bundle.
+2. Function call in an inline constraint: `strb == full_strb()` in `apb_base_seq::do_write`.
+3. Covergroup `iff` that references a class member (`cfg.features.has_pprot`) in `apb_coverage`.
+4. Size casts by package parameters (`APB_MAX_DW'(x)`, `ADDR_WIDTH'(x)`) in the adapters.
+5. Package import in the interface header (`interface … import apb_bfm_pkg::*; #(…)`).
+6. `fork…join_any` + `disable fork` inside an interface task (driver BFM); named-event wake in `get_transfer()` (RISK-002).
+7. Two specializations of each parameterized adapter in one image (A and B), the core RISK-001 question. Verilator 5.020 is known to fail here; that is a tool limitation, not a reason to change ADR-001.
+8. Hierarchical references from `apb_hvl_top` into `apb_hdl_top` (two top modules).
+
+## Known gaps (not implemented in M1)
+
+- APB5: `PWAKEUP` and user signals (M2), parity generation/checking (M3). `configure()` and `apb_agent_cfg` reject them today.
+- CFG-05 (user widths vs physical) arrives with M2.
+- RST-4 reset *event* in the observe API: only counters (`get_reset_count`) exist. No reset test yet, and the fixture scoreboard does not model reset clearing.
+- Passive-agent test: needs an independent Requester on a bus (a second monitor-only instance or an RTL master). Not written.
+- APB2/APB3 integration test: needs an HDL top variant tying the fixture's `PSTRB` to `PWRITE` (IHI 0024D Table 3-1). Not written.
+- Coverage of reset transitions; 4-state injection test (RISK-009).
+- Emulation suitability (`fork` in the BFM, `string` in monitor messages) is unassessed.
 
 ## Next tasks — in priority order
 
-- [~] **APB-001 — Review protocol contract:** Select APB revision, optional pins, reset details, supported address/data widths, and 4-state transport semantics. Produce a testable signal table and acceptance matrix. → Drafted in `APB_PROTOCOL_CONTRACT.md`; Q1 decided (ADR-001 A1), Q3 decided (EDA Playground as owner option), Q2/Q4/Q5 proceeding on proposed defaults.
-- [~] **APB-002 — Review BFM connection legality:** Diagram ordinary signal-port wiring of two BFM interfaces to one `apb_if` instance; specify driver/monitor clocking and monitor-to-HVL return path. Note simulator/version. → Implemented: ordinary-port wiring in `apb_hdl_top`, clocking blocks inside each BFM, queue + `get_transfer()` return path (contract §7). Validated on slang + Verilator 5.020 only; open items in RISK-001/002/009.
-- [~] **APB-003 — Generate minimal HDL + compile:** `apb_if.sv`, two BFMs, example HDL top and HDL filelist. Save exact command/log and fix language restrictions. → APB-003a sources written (portable, RISK-010 reverts applied); compile/simulation NOT RUN pending toolchain approval. `evidence/APB-003a/` is superseded.
-- [ ] **APB-004 — Generate HVL types/proxies/agent + compile:** Update manifest and run a targeted smoke.
-- [ ] **APB-005 — Run APB POC:** 32-bit and 16-bit instances concurrently, read/write, waits, passive observation, reset and error where applicable, negative tests.
-- [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit, record findings and rerun failing tests.
+- [~] **APB-001 — Review protocol contract:** drafted in `APB_PROTOCOL_CONTRACT.md`; Q1 decided (ADR-001 A1), Q3 decided (EDA Playground as owner option), Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review.
+- [~] **APB-002 — Review BFM connection legality:** implemented (ordinary-port wiring, clocking blocks in the BFMs, queue + `get_transfer()`); NOT RUN in its current form.
+- [~] **APB-003 — Generate minimal HDL + compile:** sources written; compile NOT RUN pending approval.
+- [~] **APB-004 — Generate HVL types/proxies/agent + compile:** sources written (`30cf97d`, `4ff7f39`); compile NOT RUN pending approval.
+- [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`); NOT RUN. Still missing: passive, reset and APB2/APB3 tests (see *Known gaps*).
+- [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit (suggest `5b217c9` or later), record findings and rerun failing tests.
 
 ## Toolchain (this container, 2026-10-29)
 
 | Tool | Version | Status | Use |
 |---|---|---|---|
-| slang (via `pyslang`, PyPI) | 12.1.0 (`42710c788`) | Installed; **execution now needs owner approval**; smoke-checked before the gate: clean 2-instance parameterized interface → 0 errors, seeded undeclared identifier → 1 error | SV parse/elaboration only; **cannot simulate** |
-| Verilator (Ubuntu 24.04 package) | 5.020 (`5.020-1`, from `dpkg-query`) | Installed via apt; used before the gate; **execution now needs owner approval** | 2-state; no `'z` into interface nets; two defects found (RISK-001/002). Cannot run UVM |
-| Verilator from source | 5.052 | Build **denied by the session permission policy** | Newer versions may fix the RISK-001 defects; not tried |
-| Commercial simulators (VCS/Xcelium/Questa/DSim) | — | Not in this container | Owner option: EDA Playground (`poc/apb_uvc/README.md`, `make_eda_bundle.py`) |
-| UVM library | — | Not downloaded | Needed for HVL elaboration |
+| slang (via `pyslang`, PyPI) | 12.1.0 (`42710c788`) | Installed; **execution needs owner approval** | SV/UVM parse and elaboration only; **cannot simulate** |
+| Verilator (Ubuntu 24.04 package) | 5.020 (`5.020-1`, from `dpkg-query`) | Installed; **withdrawn** (cannot build the portable sources; RISK-001/009) | — |
+| Verilator from source | 5.052 | Build denied by the session permission policy | Not tried |
+| Commercial simulators (VCS/Xcelium/Questa/DSim) | — | Not in this container | Owner option: EDA Playground |
+| UVM library | — | Not downloaded (needs approval, T3) | Needed for slang elaboration of HVL code |
 
 ## Validation evidence
 
-Current sources (after the RISK-010 reverts): **nothing has been compiled or simulated.** Earlier unapproved slang/Verilator runs on revision `5060712` are superseded (`evidence/APB-003a/README.md`).
+Current sources: **nothing has been compiled or simulated.** Earlier unapproved slang/Verilator runs on revision `5060712` are superseded (`evidence/APB-003a/README.md`).
 
 | Stage | Tool/version | Command | Result | Log | Commit |
 |---|---|---|---|---|---|
-| APB HDL elaboration (std + DW=64 ext.) | — (T1 proposed) | NOT RUN | NOT RUN | — | — |
-| APB 32/16 HDL-only simulation (+DW=64 ext.) | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
-| HDL fault injection (3 modes, instance A) | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
+| HDL elaboration (std + DW=64 ext.) | — (T1 proposed) | NOT RUN | NOT RUN | — | — |
+| HDL-only smoke 32/16 (+DW=64 ext.) and 3 fault runs | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
+| HVL + UVM elaboration (`apb_poc.f`) | — (T1 + T3 proposed) | NOT RUN | NOT RUN | — | — |
+| UVM `apb_poc_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
+| UVM `apb_fault_injection_test` ×3 | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
+| UVM `apb_cfg_negative_test`, `apb_width_negative_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
 | 4-state / drive release / X-Z checks | — | NOT RUN | NOT RUN | — | — |
-| Reset mid-transfer, passive instance, APB2/APB3 configs | — | NOT RUN | NOT RUN | — | — |
-| APB UVM compile/elaboration | UNKNOWN | NOT RUN | NOT RUN | — | — |
+| Reset mid-transfer, passive instance, APB2/APB3 configs | — | NOT WRITTEN | — | — | — |
 | Emulation | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | *Superseded:* slang + Verilator 5.020 on `5060712` | slang 12.1.0, Verilator 5.020 | former `run_hdl_smoke.sh` | PASS (unapproved, revision had workarounds) | `evidence/APB-003a/logs/` | `5060712` |
 
 ## Toolchain approval request (pending owner decision)
 
-Nothing below runs until the owner explicitly approves it (contract gate; approval for one item does not cover another).
+Nothing below runs until the owner explicitly approves it (contract gate; approval for one item does not cover another). Commands are from the repository root.
 
-| # | Tool / version | Scope | Exact commands (from repo root) |
+| # | Tool / version | Scope | Exact commands |
 |---|---|---|---|
-| T1 | slang 12.1.0 (pyslang, PyPI) | Elaboration/lint of HDL now; HVL + UVM elaboration later (needs a UVM library, item T3) | `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` (and the same with `+define+APB_ENABLE_DW64_EXTENSION`) |
-| T2 | ~~Verilator 5.020~~ | **Not proposed:** it cannot build the portable sources (class runner, `fork` in the BFM, `'z` on interface nets; RISK-001/009), and workarounds are not allowed | — |
-| T3 | Accellera UVM library source (version to choose: 1800.2-2020 or 1.2) | Download only, for T1 elaboration of HVL code; not a simulator | owner to confirm source and version |
-| T4 | Commercial simulator on EDA Playground (owner picks Questa/Xcelium/VCS/…) | Owner-run 4-state HDL smoke: positive, `+APB_FAULT=1..3`, DW=64 extension (RISK-009); later UVM | bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_hdl_smoke.f apb_hdl_smoke_bundle.sv` (plain-text concatenation, not a tool run); top `apb_hdl_smoke`; results recorded here |
+| T1 | slang 12.1.0 (pyslang, PyPI) | Elaboration/lint: HDL smoke now; full UVM POC once T3 exists | HDL: `python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke` (and with `+define+APB_ENABLE_DW64_EXTENSION`). UVM: `python3 -I poc/apb_uvc/scripts/slang_elab.py +incdir+<UVM>/src <UVM>/src/uvm_pkg.sv -F poc/apb_uvc/filelists/apb_poc.f --top apb_hdl_top --top apb_hvl_top` |
+| T2 | ~~Verilator 5.020~~ | **Withdrawn:** cannot build the portable sources (RISK-001/009); workarounds not allowed | — |
+| T3 | Accellera UVM library source (owner picks 1800.2-2020 or 1.2) | Download only, for T1 elaboration; not a simulator | owner to confirm source and version |
+| T4 | Commercial simulator on EDA Playground (owner picks Questa/Xcelium/VCS/…, with its UVM 1.2 or 1800.2 library) | Owner-run: HDL smoke and the UVM tests in *Tests available*, 4-state checks (RISK-009) | HDL bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_hdl_smoke.f apb_hdl_smoke_bundle.sv` (top `apb_hdl_smoke`). UVM bundle: `python3 -I poc/apb_uvc/scripts/make_eda_bundle.py poc/apb_uvc/filelists/apb_poc.f apb_poc_bundle.sv` (tops `apb_hdl_top apb_hvl_top`, run option `+UVM_TESTNAME=<test>`). The bundle step is plain text processing; record each result here |
 
 ## AI handoff template (fill every session)
 
@@ -123,15 +192,15 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 ```text
 HANDOFF FROM: Claude (Claude Code session)
 REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-001-protocol-contract
-EXACT COMMIT SHA: branch HEAD (`git log -1`); dev merged at 91c369f; superseded tool runs at 50607121dfc980ac89bbb768d30e768c9df98e68
+EXACT COMMIT SHA: sources at 5b217c97cf89bc551914f1f43ff89842f85f620a; this checkpoint is the docs commit on top (`git log -1`)
 GIT STATUS (including uncommitted files): clean after commit
-CURRENT TASK ID: APB-003a written (portable; NOT RUN); toolchain approval pending (T1, T3, T4); next APB-004 source only
-FILES CREATED/CHANGED: poc/apb_uvc/** (new: hdl, examples, tests, filelists, scripts, README, .gitignore); docs/dv-architecture/{APB_PROTOCOL_CONTRACT.md, REVIEW_FEEDBACK.md, WORK_STATUS.md, ADR-001 (A1), ADR-002, ARCHITECTURE_CONTRACT v0.9, DIRECTORY_ARCHITECTURE, CLAUDE_GENERATION_PROMPT, AGENTS.md, README.md, evidence/APB-003a/**}; root AGENTS.md (DW=16 wording only)
-PROVEN WORKING (with log/command): nothing for the current sources. Superseded: unapproved slang + Verilator PASS at 5060712 (revision with Verilator workarounds, reverted per RISK-010)
-FAILED CHECKS (with log/command): none run on the current sources. Verilator 5.020 defects logged as tool limitations (RISK-001/002/009), not worked around
-NOT YET RUN: 4-state simulator; reset mid-transfer; passive instance; APB2/APB3 configs; anything UVM
-UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; monitor delivery latency differs on Verilator (RISK-002)
-OPEN REVIEW FINDING IDS: RISK-001..010 (RISK-007 decided, open until the cfg check is tested; RISK-010 dispositioned, open until the reverted sources compile on an approved tool)
-ARCHITECTURE CONTRACT/ADR AMENDED?: ADR-001 Amendment A1 (owner-approved width pair 32/16, DW=64 extension); contract v0.9; ADR-002 references A1 only
-NEXT EXACT COMMAND/SMALLEST TASK: no tool execution until the owner approves items in *Toolchain approval request*. Then APB-004 step 3 — obtain a UVM library (Accellera UVM 2020.3.1 or 1.2) for slang elaboration; write hvl/types/apb_transaction.sv, hvl/api/apb_{drive,monitor}_proxy_base.sv, hvl/pkg/apb_api_pkg.sv; elaborate with slang; then step 4 adapters (Verilator 5.020 cannot validate them — RISK-001)
+CURRENT TASK ID: APB-004/005 sources written; awaiting toolchain approval (T1, T3, T4)
+FILES CREATED/CHANGED (this session): poc/apb_uvc/hvl/** (new), examples/apb_hvl_top.sv, tests/apb_poc_*.sv, tests/apb_fake_proxies.sv, tests/apb_fault_injection_test.sv, tests/apb_negative_tests.sv, filelists/apb_hvl.f, filelists/apb_poc.f, scripts/make_eda_bundle.py; docs: WORK_STATUS.md, APB_PROTOCOL_CONTRACT.md, REVIEW_FEEDBACK.md, poc/apb_uvc/README.md
+PROVEN WORKING (with log/command): nothing executed on the current sources (gate). make_eda_bundle.py exercised on apb_poc.f (11 sources, includes inlined) and apb_hdl_smoke.f; text processing only
+FAILED CHECKS (with log/command): none run
+NOT YET RUN: every compile/elaboration/simulation stage (see Validation evidence)
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
+OPEN REVIEW FINDING IDS: RISK-001..011
+ARCHITECTURE CONTRACT/ADR AMENDED?: no change this session (contract v0.10, ADR-001 A1)
+NEXT EXACT COMMAND/SMALLEST TASK: get owner approval for T1/T3 (or T4). Then (T1+T3): run the UVM slang command in the approval table, record the log in evidence/APB-004/, and fix SOURCE bugs only (no tool-specific changes). Or (T4): owner runs the HDL bundle on EDA Playground and pastes the log; record it here. After that, write the missing passive/reset/APB3 tests (Known gaps)
 ```
