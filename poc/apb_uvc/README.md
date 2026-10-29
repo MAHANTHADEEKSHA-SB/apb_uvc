@@ -2,7 +2,7 @@
 
 One reusable APB Requester (master) UVC. Two instances of the same source — **AW=32/DW=32** and **AW=32/DW=16** — run side by side to show width independence. **DW=64** is available only as an opt-in, non-standard extension (ADR-001 Amendment A1).
 
-**Status:** milestone M1, step 2 (HDL) only. The signal interface, the driver and monitor BFMs, an example Completer, the HDL top and an HDL-only smoke test exist. They passed slang/Verilator runs that predate the toolchain approval gate and still await owner ratification (`../../docs/dv-architecture/WORK_STATUS.md`). HVL proxies, UVM components, sequences and coverage are **not written yet**.
+**Status:** milestone M1, step 2 (HDL) only. The signal interface, the driver and monitor BFMs, an example Completer, the HDL top and an HDL-only smoke test exist as **portable IEEE 1800-2017 SystemVerilog with no tool-specific code paths**. The current sources have **not been compiled or simulated** (toolchain approval pending, `../../docs/dv-architecture/WORK_STATUS.md`). HVL proxies, UVM components, sequences and coverage are **not written yet**.
 
 Governing documents: `../../docs/dv-architecture/` — `APB_PROTOCOL_CONTRACT.md` (pins, rules, reset, transaction), `ARCHITECTURE_CONTRACT.md`, ADR-001, ADR-002, `WORK_STATUS.md`.
 
@@ -28,13 +28,12 @@ hdl/apb_driver_bfm_if.sv    Requester drive BFM; outputs 'z until set_enable(1)
 hdl/apb_monitor_bfm_if.sv   passive monitor BFM; protocol checks; observation queue
 examples/apb_example_slave.sv  small APB4 Completer (test fixture only)
 examples/apb_hdl_top.sv     instances A (DW=32) and B (DW=16), own clocks/resets
-tests/apb_hdl_smoke_runner.sv  directed sequence for one instance
-tests/apb_hdl_smoke.sv      smoke top; binds a runner into each instance
+tests/apb_hdl_smoke.sv      smoke top; width-parameterized class drives each instance
+                            through typed virtual BFM handles
 filelists/apb_hdl.f         reusable HDL core, compile order
 filelists/apb_hdl_smoke.f   core + example + smoke test
-scripts/run_hdl_smoke.sh    full evidence run (slang + Verilator)
-scripts/slang_elab.py       slang elaboration wrapper
-scripts/make_eda_bundle.py  single-file bundle for EDA Playground
+scripts/slang_elab.py       slang elaboration wrapper (proposed check, needs approval)
+scripts/make_eda_bundle.py  single-file bundle for EDA Playground (plain text, no tool)
 ```
 
 Filelists use paths relative to the filelist, so pass them with **`-F`**, not `-f`.
@@ -59,13 +58,11 @@ BFM API used by the (future) HVL adapters:
 
 ## Running the HDL smoke
 
-Inside this repository's AI workflow, no tool below may be run without explicit owner approval of the tool, version and commands (ARCHITECTURE_CONTRACT toolchain gate).
+Inside this repository's AI workflow, no simulator or compiler may be run without explicit owner approval of the tool, version and commands (ARCHITECTURE_CONTRACT toolchain gate).
 
-```sh
-scripts/run_hdl_smoke.sh [output_dir]   # needs python3 + pyslang, verilator >= 5.020
-```
+Any simulator with full IEEE 1800-2017 support can run it: compile `filelists/apb_hdl_smoke.f` (with `-F`), top `apb_hdl_smoke`, and look for `SMOKE_RESULT: PASS`. The plusargs `+APB_FAULT=1`, `2` and `3` run the negative tests; each must also end in `SMOKE_RESULT: PASS`, meaning the fault on instance A was detected and instance B stayed clean. `+define+APB_ENABLE_DW64_EXTENSION` adds the DW=64 instance.
 
-It runs slang elaboration (standard and DW=64), a positive Verilator run, three fault-injection runs (`+APB_FAULT=1..3`, each must be detected on instance A while instance B stays clean) and the DW=64 extension run. It exits 0 only if every step passes.
+Language features the sources rely on: 4-state nets with `'z` release on interface nets, clocking blocks with `#1step` input skew, `fork…join_any` with `disable fork` in interface tasks, named events, queues, and parameterized classes holding parameterized virtual-interface types.
 
 ### EDA Playground (commercial simulators)
 
@@ -73,12 +70,8 @@ It runs slang elaboration (standard and DW=64), a positive Verilator run, three 
 python3 -I scripts/make_eda_bundle.py filelists/apb_hdl_smoke.f apb_hdl_smoke_bundle.sv
 ```
 
-Paste the generated file into the *testbench.sv* pane, leave *design.sv* empty, pick a SystemVerilog simulator, set the top to `apb_hdl_smoke`, and look for `SMOKE_RESULT: PASS`. Add `+APB_FAULT=1` (2, 3) as a run option for the negative tests. For the DW=64 extension, add `+define+APB_ENABLE_DW64_EXTENSION` to the bundle command. A 4-state simulator also exercises the `'z` release and X/Z checks, which Verilator cannot (see below).
+Paste the generated file into the *testbench.sv* pane, leave *design.sv* empty, pick a SystemVerilog simulator, set the top to `apb_hdl_smoke`, and look for `SMOKE_RESULT: PASS`. Add `+APB_FAULT=1` (2, 3) as a run option for the negative tests. For the DW=64 extension, add `+define+APB_ENABLE_DW64_EXTENSION` to the bundle command.
 
-## Known tool limitations (Verilator 5.020)
+## Portability policy
 
-- 2-state, and no `'z` into interface nets. Under `VERILATOR` the driver's released outputs read 0, so **drive release and X/Z checks are not verified by Verilator runs**.
-- Faults on two specializations of a parameterized class that each hold a parameterized virtual-interface type, which is the ADR-001 adapter pattern. It also cannot bind a generic interface port to a hierarchical instance. Hence the smoke runner is a module bound into the top.
-- It can miss the monitor's same-time-step wake-up, so `get_transfer()` returns one PCLK later than on a compliant simulator. Contents and cycle stamps are unchanged.
-
-Details and repro cases are in `../../docs/dv-architecture/REVIEW_FEEDBACK.md` (RISK-001, RISK-002, RISK-009).
+The sources contain **no tool-specific code paths, pragmas or workarounds** (owner decision 2026-10-29). A simulator that cannot handle the standard constructs above is recorded as a tool limitation in `../../docs/dv-architecture/REVIEW_FEEDBACK.md`; the code is not bent to fit it. Known example: Verilator 5.020 (RISK-001, RISK-009).

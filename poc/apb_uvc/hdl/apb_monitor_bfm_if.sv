@@ -12,8 +12,7 @@
 //   * a transfer is published once, at the PCLK edge where
 //     PSEL & PENABLE & PREADY is sampled HIGH (APB-R05), into a bounded queue
 //     of plain packed values (no UVM objects in HDL, ADR-002 section 6);
-//   * the HVL observe adapter calls the blocking task get_transfer(); see
-//     its comment for the wake-up rule.
+//   * the HVL observe adapter calls the blocking task get_transfer().
 //
 // Protocol violations are counted per apb_mon_error_e code and optionally
 // printed; the HVL side turns the counts into UVM reports.
@@ -92,7 +91,7 @@ interface apb_monitor_bfm_if
   bit              publish_en         = 1'b0;  // queue only when a consumer exists
   bit              verbose            = 1'b1;  // print each violation
   apb_obs_t        obs_q[$];
-  bit              obs_tick           = 1'b0;  // toggled (NBA) on every publish
+  event            obs_ev;                     // triggered on every publish
   int unsigned     error_count[APB_MON_NUM_ERRORS];
   int unsigned     transfer_count     = 0;     // completed transfers observed
   int unsigned     reset_count        = 0;     // resets after the first release
@@ -150,13 +149,9 @@ interface apb_monitor_bfm_if
     foreach (error_count[i]) error_count[i] = 0;
   endfunction
 
-  // Blocks until a completed transfer is available, then removes it.
-  // obs_tick is toggled with a nonblocking assignment, so on a compliant
-  // simulator the caller wakes in the completion time step, after every
-  // active process. The PCLK term only guarantees progress: Verilator 5.020
-  // misses that wake-up for a parameterized interface reached through a port
-  // and delivers one PCLK later, with identical content and cycle stamps
-  // (REVIEW_FEEDBACK RISK-002).
+  // Blocks until a completed transfer is available, then removes it. The
+  // queue is checked before waiting, so a publish earlier in the same time
+  // step is never missed.
   task automatic get_transfer(
     output bit                    write,
     output logic [ADDR_WIDTH-1:0] addr,
@@ -171,7 +166,7 @@ interface apb_monitor_bfm_if
     output longint unsigned       end_cycle
   );
     apb_obs_t o;
-    while (obs_q.size() == 0) @(obs_tick or posedge PCLK);
+    while (obs_q.size() == 0) @(obs_ev);
     o           = obs_q.pop_front();
     write       = o.write;
     addr        = o.addr;
@@ -210,7 +205,7 @@ interface apb_monitor_bfm_if
       return;
     end
     obs_q.push_back(o);
-    obs_tick <= ~obs_tick;
+    -> obs_ev;
   endtask
 
   // Capture the request-side values of a transfer from the current sample

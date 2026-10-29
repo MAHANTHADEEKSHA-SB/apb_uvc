@@ -75,39 +75,27 @@ interface apb_driver_bfm_if
   apb_features_t features = apb_default_features();
   apb_fault_e    fault    = APB_FAULT_NONE;
 
-  // Release-capable output stage (APB_PROTOCOL_CONTRACT section 8).
-  // Tool note: Verilator 5.020 cannot drive 'z into interface nets ("Unsupported LHS
-  // tristate construct: VARXREF") and is 2-state anyway, so under Verilator
-  // released outputs read 0 and drive release is NOT verified by its runs.
-`ifdef VERILATOR
-  localparam logic REL = 1'b0;
-`else
-  localparam logic REL = 1'bz;
-`endif
-  localparam int ADDRCHK_WIDTH      = (ADDR_WIDTH + 7) / 8;
-  localparam int USER_REQ_CHK_WIDTH  = (USER_REQ_WIDTH + 7) / 8;
-  localparam int USER_DATA_CHK_WIDTH = (USER_DATA_WIDTH + 7) / 8;
-
-  assign PADDR      = drive_en ? paddr_q   : {ADDR_WIDTH{REL}};
-  assign PPROT      = drive_en ? pprot_q   : {3{REL}};
-  assign PSEL       = drive_en ? psel_q    : {NUM_SEL{REL}};
-  assign PENABLE    = drive_en ? penable_q : REL;
-  assign PWRITE     = drive_en ? pwrite_q  : REL;
-  assign PWDATA     = drive_en ? pwdata_q  : {DATA_WIDTH{REL}};
-  assign PSTRB      = drive_en ? pstrb_q   : {STRB_WIDTH{REL}};
+  // Release-capable output stage (APB_PROTOCOL_CONTRACT section 8)
+  assign PADDR      = drive_en ? paddr_q   : 'z;
+  assign PPROT      = drive_en ? pprot_q   : 'z;
+  assign PSEL       = drive_en ? psel_q    : 'z;
+  assign PENABLE    = drive_en ? penable_q : 1'bz;
+  assign PWRITE     = drive_en ? pwrite_q  : 1'bz;
+  assign PWDATA     = drive_en ? pwdata_q  : 'z;
+  assign PSTRB      = drive_en ? pstrb_q   : 'z;
   // APB5 outputs: absent until M2/M3, driven to 0 per IHI 0024D A.1
-  assign PWAKEUP    = drive_en ? 1'b0 : REL;
-  assign PAUSER     = drive_en ? '0   : {USER_REQ_WIDTH{REL}};
-  assign PWUSER     = drive_en ? '0   : {USER_DATA_WIDTH{REL}};
-  assign PADDRCHK   = drive_en ? '0   : {ADDRCHK_WIDTH{REL}};
-  assign PCTRLCHK   = drive_en ? 1'b0 : REL;
-  assign PSELCHK    = drive_en ? '0   : {NUM_SEL{REL}};
-  assign PENABLECHK = drive_en ? 1'b0 : REL;
-  assign PWDATACHK  = drive_en ? '0   : {STRB_WIDTH{REL}};
-  assign PSTRBCHK   = drive_en ? 1'b0 : REL;
-  assign PWAKEUPCHK = drive_en ? 1'b0 : REL;
-  assign PAUSERCHK  = drive_en ? '0   : {USER_REQ_CHK_WIDTH{REL}};
-  assign PWUSERCHK  = drive_en ? '0   : {USER_DATA_CHK_WIDTH{REL}};
+  assign PWAKEUP    = drive_en ? 1'b0 : 1'bz;
+  assign PAUSER     = drive_en ? '0   : 'z;
+  assign PWUSER     = drive_en ? '0   : 'z;
+  assign PADDRCHK   = drive_en ? '0   : 'z;
+  assign PCTRLCHK   = drive_en ? 1'b0 : 1'bz;
+  assign PSELCHK    = drive_en ? '0   : 'z;
+  assign PENABLECHK = drive_en ? 1'b0 : 1'bz;
+  assign PWDATACHK  = drive_en ? '0   : 'z;
+  assign PSTRBCHK   = drive_en ? 1'b0 : 1'bz;
+  assign PWAKEUPCHK = drive_en ? 1'b0 : 1'bz;
+  assign PAUSERCHK  = drive_en ? '0   : 'z;
+  assign PWUSERCHK  = drive_en ? '0   : 'z;
 
   clocking cb @(posedge PCLK);
     default input #1step;
@@ -194,53 +182,47 @@ interface apb_driver_bfm_if
     if (sel >= unsigned'(NUM_SEL)) begin status = APB_ST_BAD_REQUEST; return; end
     if (PRESETn !== 1'b1)    begin status = APB_ST_RESET_ABORTED; return; end
 
-    // No fork/disable fork: reset is checked at every PCLK edge (RST-3) while
-    // the always block below idles the pins as soon as reset asserts (RST-1).
-    // This keeps the BFM free of dynamic processes.
     busy = 1'b1;
     st   = APB_ST_OK;
+    fork begin : guard  // isolates "disable fork" from the caller's processes
+      fork
+        begin : transfer
+          repeat (idle_cycles) @(cb);
+          drive_setup(write, addr, wdata, strb, prot, sel);
+          if (fault != APB_FAULT_SKIP_SETUP) begin
+            @(cb);                 // Completer samples SETUP at this edge
+            penable_q <= 1'b1;     // ACCESS (APB-R04)
+          end
+          forever begin
+            @(cb);
+            if (!apb_has_pready(features.revision) || cb.PREADY === 1'b1) begin
+              if (!write) rdata = cb.PRDATA;  // 4-state, verbatim
+              slverr = apb_has_pslverr(features.revision) ? cb.PSLVERR : 1'b0;
+              if (slverr === 1'b1) st = APB_ST_SLVERR;
+              break;
+            end
+            if (wait_states == 0 && fault == APB_FAULT_PADDR_UNSTABLE)
+              paddr_q <= ~addr;
+            if (wait_states == 0 && fault == APB_FAULT_DROP_PSEL_IN_WAIT) begin
+              st = APB_ST_FAULT_INJECTED;
+              break;
+            end
+            wait_states++;
+            if (max_wait_cycles != 0 && wait_states >= max_wait_cycles) begin
+              st = APB_ST_TIMEOUT;  // POL-02; the Completer is abandoned mid-ACCESS
+              break;
+            end
+          end
+        end
+        begin : reset_watch      // RST-2/RST-3: abandon the transfer at the reset edge
+          wait (PRESETn !== 1'b1);
+          st = APB_ST_RESET_ABORTED;
+        end
+      join_any
+      disable fork;
+    end join
 
-    for (int unsigned i = 0; i < idle_cycles && st == APB_ST_OK; i++) begin
-      @(cb);
-      if (in_reset()) st = APB_ST_RESET_ABORTED;
-    end
-    if (st == APB_ST_OK && in_reset()) st = APB_ST_RESET_ABORTED;
-
-    if (st == APB_ST_OK) begin
-      drive_setup(write, addr, wdata, strb, prot, sel);
-      if (fault != APB_FAULT_SKIP_SETUP) begin
-        @(cb);                    // Completer samples SETUP at this edge
-        if (in_reset()) st = APB_ST_RESET_ABORTED;
-        else penable_q <= 1'b1;   // ACCESS (APB-R04)
-      end
-    end
-
-    while (st == APB_ST_OK) begin
-      @(cb);
-      if (in_reset()) begin
-        st = APB_ST_RESET_ABORTED;
-        break;
-      end
-      if (!apb_has_pready(features.revision) || cb.PREADY === 1'b1) begin
-        if (!write) rdata = cb.PRDATA;  // 4-state, verbatim
-        slverr = apb_has_pslverr(features.revision) ? cb.PSLVERR : 1'b0;
-        if (slverr === 1'b1) st = APB_ST_SLVERR;
-        break;
-      end
-      if (wait_states == 0 && fault == APB_FAULT_PADDR_UNSTABLE)
-        paddr_q <= ~addr;
-      if (wait_states == 0 && fault == APB_FAULT_DROP_PSEL_IN_WAIT) begin
-        st = APB_ST_FAULT_INJECTED;
-        break;
-      end
-      wait_states++;
-      if (max_wait_cycles != 0 && wait_states >= max_wait_cycles) begin
-        st = APB_ST_TIMEOUT;  // POL-02; the Completer is abandoned mid-ACCESS
-        break;
-      end
-    end
-
-    if (st != APB_ST_RESET_ABORTED) drive_idle();  // reset already idled the pins
+    drive_idle();
     status = st;
     busy   = 1'b0;
   endtask
@@ -267,11 +249,6 @@ interface apb_driver_bfm_if
     pstrb_q   <= features.has_pstrb ? strb : '0;    // absent pin driven to 0
     pprot_q   <= features.has_pprot ? prot : 3'b000;
   endtask
-
-  // Reset seen either at the last PCLK sample or right now (RST-2)
-  function automatic bit in_reset();
-    return cb.PRESETn !== 1'b1 || PRESETn !== 1'b1;
-  endfunction
 
   // IDLE values (APB-R02, APB-R14/POL-03)
   task automatic drive_idle();
