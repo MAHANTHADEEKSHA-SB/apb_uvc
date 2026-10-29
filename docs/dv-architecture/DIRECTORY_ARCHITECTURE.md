@@ -1,146 +1,129 @@
-# Reusable SystemVerilog/UVM testbench architecture — design review v0.2
+# APB UVC — target directory architecture (single-UVC POC)
 
-Status: **PROPOSED; not frozen**. This is a project design proposal, not a directory structure mandated by DVCon.
+**Status:** Target layout approved for APB-only proof of concept; exact compilation and BFM wiring require validation.
+**Scope:** Exactly **one reusable APB UVC**. The 32-bit and 64-bit configurations are two instances of the same UVC, not two UVC products. No AHB, AXI, reset UVC, generic bus framework, or subsystem bridge scoreboard is in this milestone.
 
-## 1. Principles and constraints
+## Repository integration
 
-- Primary goal: reusable, understandable IP-to-subsystem verification, with explicit dependencies and selectable agents.
-- Prevent unnecessary parameter ripple *when varying physical interface widths*. Do not ban parameterization everywhere: it may be appropriate for strongly typed components or performance reasons.
-- BFMs/interface access live below UVM driver/monitor. Scoreboards and reference models consume transactions/events and have no direct pin/virtual-interface dependencies.
-- Full UVC is **per meaningful protocol/interface**, not per individual signal. Use lightweight monitors, assertions, or event agents for standalone status/interrupt/reset signals.
-- A separate predictor is **optional**: a deterministic one-to-one transformation can live in a pure helper called by scoreboard input `write_*`; stateful prediction is a reason to consider separate model ownership.
-- Group related behavior in a common scoreboard; separate independent functions. Avoid monolithic scoreboards when feature-specific checkers improve clarity.
-- Do not invent reset behavior. Define acceptance vs completion, partial transfers, pending-drain/abort/retention, reset-domain ownership, and callback ordering from the DUT specification.
-- Compiled files and enabled components are two **different** concerns. A factory/config flag can prevent elaborating UVM objects, but does not in general remove compiled source from a compilation; optional compile filelists/packages are required for actual compile-load savings.
-
-## 2. Proposed repository layout
+The GitHub repository already contains an older, **flat-layout APB UVC** at its root. Do **not** move, delete, or rewrite that implementation as part of the POC. Put new code under `poc/apb_uvc/`; evaluate migration in a separate approved change.
 
 ```text
-project/
-├── README.md
+apb_uvc/                             # existing GitHub repository
+├── AGENTS.md                         # directs AI contributors to governance docs
 ├── docs/
-│   ├── requirements/                 # DUT contracts, acceptance, reset, ordering
-│   ├── architecture/                 # decisions, dependency diagram, alternatives
-│   ├── verification_plan/            # feature -> tests/assertions/coverage traceability
-│   └── references/                   # citations/links, no copied proprietary content
-├── rtl/                              # example/mock DUT for public POC only
-├── tb/
-│   ├── common/                       # shared transaction types and utilities
-│   ├── interfaces/                   # HDL interfaces (parameterized as needed)
-│   ├── bfm/                          # signal-level drive/sample operations
-│   ├── bind/                         # protocol SVA bind files, if needed
-│   └── top/                          # HDL and HVL top / connection logic
-├── uvc/
-│   ├── simple_bus/
-│   │   ├── item/                     # non-width-specific semantic transaction
-│   │   ├── api/                      # abstract drive/observe access contracts
-│   │   ├── adapter/                  # concrete specialization + virtual interface
-│   │   ├── agent/                    # driver, monitor, sequencer, agent, cfg
-│   │   ├── sequences/                # bus-level stimulus
-│   │   ├── coverage/                 # only when enabled
-│   │   └── pkg/                      # compilation unit / package
-│   └── reset_events/                 # lightweight observer if needed
-├── env/
-│   ├── config/                       # environment composition & connections
-│   ├── scoreboards/                  # packet/event-only comparison
-│   ├── reference_models/            # optional stateful predictor
-│   ├── coverage/                     # subsystem cross coverage
-│   ├── virtual_sequences/            # scenario coordination
-│   └── ral/                          # optional RAL
-├── tests/                            # UVM tests
-├── sim/
-│   ├── filelists/                    # core.f, simple_bus.f, reset.f, ral.f etc.
-│   ├── scripts/                      # lint/compile/elaborate/run invocation
-│   └── waivers/                      # reviewed, documented exceptions
-├── tools/                            # optional architecture checker and helpers
-├── regress/                          # smoke and configuration matrices
-├── ci/                                # CI jobs when available
-└── results/                           # generated; gitignored
+│   └── dv-architecture/
+│       ├── README.md
+│       ├── AGENTS.md
+│       ├── ARCHITECTURE_CONTRACT.md
+│       ├── DIRECTORY_ARCHITECTURE.md
+│       ├── ADR-001-HVL-PROXY-PLACEMENT.md
+│       ├── ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md
+│       ├── CLAUDE_GENERATION_PROMPT.md
+│       ├── WORK_STATUS.md
+│       └── REVIEW_FEEDBACK.md
+├── apb_*.sv                          # original UVC; unchanged by POC
+└── poc/
+    └── apb_uvc/                      # SELF-CONTAINED, TRANSFERABLE UVC ROOT
+        ├── hdl/
+        │   ├── apb_if.sv             # signals, modports, optional clocking blocks
+        │   ├── apb_driver_bfm_if.sv  # timed APB master drive tasks
+        │   └── apb_monitor_bfm_if.sv # passive APB sampling tasks
+        ├── hvl/
+        │   ├── types/
+        │   │   └── apb_transaction.sv
+        │   ├── api/
+        │   │   ├── apb_drive_proxy_base.sv
+        │   │   └── apb_monitor_proxy_base.sv
+        │   ├── adapter/
+        │   │   ├── apb_drive_proxy.sv
+        │   │   └── apb_monitor_proxy.sv
+        │   ├── config/
+        │   │   └── apb_agent_cfg.sv
+        │   ├── agent/
+        │   │   ├── apb_driver.sv
+        │   │   ├── apb_monitor.sv
+        │   │   ├── apb_sequencer.sv
+        │   │   └── apb_agent.sv
+        │   ├── sequences/
+        │   ├── coverage/
+        │   └── pkg/
+        │       ├── apb_api_pkg.sv
+        │       ├── apb_uvc_pkg.sv
+        │       └── apb_adapter_pkg.sv
+        ├── assertions/               # optional APB protocol assertions
+        ├── filelists/
+        │   ├── apb_hdl.f
+        │   ├── apb_hvl.f
+        │   └── apb_poc.f
+        ├── examples/
+        │   ├── apb_example_slave.sv
+        │   ├── apb_hdl_top.sv
+        │   └── apb_hvl_top.sv
+        ├── tests/
+        │   ├── apb_poc_test.sv
+        │   └── apb_fault_injection_test.sv
+        ├── scripts/
+        │   └── run_poc.sh            # add Windows equivalent if needed
+        └── README.md                  # consumer integration + build instructions
 ```
 
-Folders need only be created when used; avoid empty scaffolding. Adapt names to project conventions. Keep HDL/HVL compile order in filelists and don't rely on directory order.
+**Directory policy:** Create paths as files are implemented, not empty placeholder folders. The UVC must be deliverable by copying `poc/apb_uvc/` (with UVM/simulator prerequisites documented). The demonstration DUT/top and POC tests are examples shipped alongside the reusable core, **not required by a consumer**.
 
-## 3. Logical connection diagram
+## Ownership and compile boundary
+
+| Ownership | Compiled / integrated as | What it contains |
+|---|---|---|
+| `hdl/apb_if.sv` | HDL interface unit | APB signals, modports, optional clocking blocks; no UVM classes and no APB transaction-drive tasks |
+| `hdl/*_bfm_if.sv` | HDL interface units | Separate master-drive and passive-monitor timing/handshake tasks; each connected to **one shared** `apb_if` instance |
+| `hvl/types` + `hvl/api` | API SV package | Non-parameterized APB transaction representation and separate abstract proxy APIs |
+| `hvl/agent` + `hvl/config` | UVM SV package | Non-parameterized UVM driver, monitor, sequencer, agent, cfg |
+| `hvl/adapter` | Width-specialized adapter package or compilation units | HVL concrete proxies holding correctly specialized virtual BFM interface handles |
+| `filelists` | Build scripts | Explicit actual compilation dependency order; consumer can use HDL/HVL groups |
+| `examples` + `tests` | Demo-only | Standalone smoke DUT, two width configurations, directed and negative tests |
+
+SystemVerilog **interface definitions cannot live inside a class/package**. The *deliverable* is one APB UVC repository subtree, not a single `apb_uvc_pkg.sv`. Check package imports and compilation dependencies with the selected simulator; avoid circular package imports.
+
+## Integration model: one UVC, two instances
 
 ```text
-[AHB or other interface] -> [monitor/proxy] -> [transaction] ---+-> [scoreboard input]
-[debug output interface] -> [monitor/proxy] -> [transaction] ----+-> [scoreboard actual]
-[reset/status observer]   -> [reset event] ----------------------+-> [lifecycle check]
-
-[sequences] -> [sequencer] -> [driver (base API)] -> [concrete adapter] -> [BFM] -> DUT
-
-Expected-path: scoreboard helper (simple mapping) OR separate predictor (stateful mapping)
+             APB UVC definition (single reusable codebase)
+              ├── Instance A: DW=32, AW=32
+              │   apb_if32 ─┬─ apb_driver_bfm_if #(32)
+              │             └─ apb_monitor_bfm_if #(32)
+              │                   ⇅ typed HVL adapters ⇅ base APIs
+              │                      apb_agent_cfg A → UVM agent A
+              └── Instance B: DW=64, AW=32
+                  apb_if64 ─┬─ apb_driver_bfm_if #(64)
+                            └─ apb_monitor_bfm_if #(64)
+                                  ⇅ typed HVL adapters ⇅ base APIs
+                                     apb_agent_cfg B → UVM agent B
 ```
 
-The scoreboard is packet/event-only; the reset monitor may be signal-aware. A protocol monitor's publication point must be specified; AHB address acceptance and completed data-phase transfers are not interchangeable.
+One `apb_agent_cfg` per agent instance carries the two **base-class handles**. The integration layer constructs correctly specialized concrete proxies and registers the cfg using scoped `uvm_config_db`. The UVM driver must not import the physical APB interface type. Both BFM interfaces must refer to the **same pin interface instance** within each APB UVC instance. No cross-instance wiring.
 
-## 4. Dependency and compile strategy
+## Signal interface versus BFMs
 
-1. Build packages from base semantic items and abstract access APIs.
-2. Compile HDL interfaces/BFMs and protocol assertion modules.
-3. Compile concrete adapter specializations requiring virtual interfaces.
-4. Compile core UVC agent classes and optional UVC features.
-5. Compile environment and whichever checkers/models are enabled for this target.
-6. Compile tests and TB tops, then elaborate and run.
+- `apb_if` owns APB pins and port-direction/clocking declarations; BFMs own timed operations and sampling. **Modports do not by themselves solve sampling races.**
+- First experiment: BFMs are parameterized **SV interfaces with ordinary signal ports** mapped to `apb_if` signals in `apb_hdl_top`. Do not blindly use an interface-typed port in a BFM interface and then a virtual handle to that interface; ADR-002 documents the portability concern.
+- Driver BFM is the active **APB master** for this initial POC. Monitor BFM observes transfers, including when the UVM agent is passive. An active APB subordinate/slave-response BFM is **out of scope**, not forbidden for a future approved extension.
+- Do not promise that `UVM_PASSIVE` removes HDL BFM elaboration or compilation; it only changes component behavior. If truly omitting the drive BFM is desired, prove a build/elaboration variant.
 
-Exact order depends on imports/package includes and simulator; package/specialization boundaries must be proven with a real compile.
+## APB POC behavior to specify before code generation
 
-Example filelist partition:
+- Identify the supported APB revision and optional pins explicitly (e.g. APB4 `PSTRB`, `PPROT`); don't fabricate APB fields or assume every APB variant includes them.
+- Master must implement setup and access phases, hold required signals stable through wait states and sample completion at the valid `PSEL && PENABLE && PREADY` boundary.
+- Include APB read and write, back-to-back transfers, inserted wait states, `PSLVERR` reporting if supported, reset and passive observation.
+- For `DW`=32 and 64, specify a lossless transaction representation, `PSTRB` relation if supported, and 4-state handling. Do not silently truncate wide data.
+- The example slave is a POC fixture and must not be treated as the APB specification itself.
 
-```text
-sim/filelists/common.f
-sim/filelists/simple_bus_core.f
-sim/filelists/simple_bus_coverage.f   # optional
-sim/filelists/reset_observer.f       # optional
-sim/filelists/bridge_env.f
-sim/filelists/bridge_tests.f
-```
+## Scope exclusions for milestone 1
 
-Selection happens **before compilation** at script/filelist level. Runtime `is_active` controls agent behavior, not source compilation.
+No AHB/AXI/UCIe UVC; no debug bridge; no second protocol agent; no general-purpose environment framework, global common directory, mandatory standalone predictor, or DUT-specific scoreboard in the UVC core. Keep checking in protocol assertions/coverage and standalone example tests. Do not prematurely split every optional feature into independent packages without measured need.
 
-## 5. Design-review decisions
+## Validation and handoff
 
-| ID | Item | Draft choice | Status / reason |
-|---|---|---|---|
-| ADR-001 | Adapter pattern | Nonparameterized drive/observe APIs + parameterized HVL concrete adapters + HDL BFM | Accepted for POC; see ADR-001-HVL-PROXY-PLACEMENT.md. Revisit after compiler/emulator evidence |
-| ADR-002 | Driver/monitor APIs | Distinct base APIs | Proposed. Avoid active drive methods leaking into passive monitors |
-| ADR-003 | Transaction encoding | Maximum-width vector with explicit active-width validation for POC | Proposed. Alternative: dynamic byte arrays for unbounded widths; protect X/Z capture |
-| ADR-004 | Predictor placement | No dedicated predictor for stateless one-to-one transform | Proposed. Helper function in scoreboard; re-evaluate for state/config/ordering |
-| ADR-005 | Scoreboard partition | By related functionality, not per UVC | Proposed. Consider separate feature checkers for larger blocks |
-| ADR-006 | Reset | Entirely DUT-spec-defined | Required. No inference from name `reset` alone |
-| ADR-007 | Optional UVCs | Modular filelists + target-specific env construction | Proposed. Avoid compiling unused optional feature packages when possible |
-| ADR-008 | POC scope | 32-bit and 64-bit concurrently on a simple mock bus | Proposed. Demonstrate multi-instance independence before real protocols |
-| ADR-009 | Verification evidence | Compiler and runnable tests required | Required. AI agreement != proof |
-
-## 6. Risks / unanswered questions before implementation
-
-- Which simulator/UVM version is the first supported target?
-- Which physical widths need true 4-state preservation? What is the upper bound?
-- Can multiple traffic streams share one common transaction type without semantic loss?
-- Does reset affect inputs, outputs, buffers, clocks, or independent domains?
-- When does the monitor publish a packet? For AHB, define address/data acceptance and transfer completion separately.
-- Does an output transaction always map one-to-one, in order, or can it be combined/retried?
-- How will optional adapters/packages avoid compile-time circular dependencies?
-- How are findings waived and tracked in Git?
-
-## 7. Public technical background
-
-- DVCon 2013, Yun & Zhang, *Deploying Parameterized Interface with UVM*: abstract/concrete interface adaptation and transaction independence.
-- DVCon 2018, Verhoorn & Baird, *Common Challenges and Solutions...*: parameter-agnostic proxy interface, instance registration, and parameter-specific BFM mapping.
-- DVCon 2024, Tanvir et al., *Working within the Parameters that SystemVerilog has constrained us to*: parameter ripple, emulation-compatible adapter relocation, factory/coverage tradeoffs.
-
-These papers inform the evaluation; they do not dictate our entire directory hierarchy.
-
-## ADR-002 addendum: physical interface vs BFMs
-
-The selected POC has **one signal interface** plus **two BFM interfaces** per active protocol instance. Driver BFM owns driving tasks; monitor BFM owns passive collection. HVL drive/observe adapters point to their respective BFM virtual interfaces. A single per-agent cfg carries base-class handles and is registered through `uvm_config_db`.
-
-**Important IEEE limitation:** Do not pass `bus_if.some_modport` as an interface-typed port of an interface BFM and then assume `virtual driver_bfm_if` is portable. DVCon 2024 III-D cites a restriction on declaring virtual interfaces for interfaces that themselves reference other interfaces through ports. The proposed POC uses explicit ordinary signal ports on BFM interfaces; the harness/bind alternative is a separate tool-validation experiment.
-
-```text
-tb/interfaces/example_bus_if.sv          # signals, modports, optional clocking blocks
-tb/bfm/example_bus_driver_bfm_if.sv      # task-based driving interface
-tb/bfm/example_bus_monitor_bfm_if.sv     # task-based sampling interface
-uvc/example_bus/proxy/*                  # two abstract APIs + two concrete HVL adapters
-uvc/example_bus/config/*                 # one per-agent cfg containing base handles
-```
+- First produce a dependency diagram, file manifest, and APB-specific acceptance criteria.
+- Then incrementally generate and compile HDL interface/BFMs, API, adapters, UVM agent, example top, tests.
+- Record exact commands/results in `WORK_STATUS.md`; review findings in `REVIEW_FEEDBACK.md`.
+- A 32/64 dual-instance test demonstrates parameter independence; one-UVC deliverability is demonstrated by using only files in `poc/apb_uvc/` plus documented external prerequisites.
+- No simulator/emulator support is claimed before actual execution.
