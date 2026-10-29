@@ -1,84 +1,86 @@
-# Architecture contract — parameter-independent UVM POC
+# Architecture contract — single APB UVC POC
 
-**Contract version:** 0.6 (2026-10-29)
-**Purpose:** Stable cross-model decision record. This is **not** a complete DUT specification.
-**Change policy:** Accepted rules may be amended only with a recorded decision, rationale, impact, and user approval. Work progress belongs in `WORK_STATUS.md` instead.
+**Version:** 0.7 · **Date:** 2026-10-29
+**Scope:** One reusable **APB UVC** developed under `poc/apb_uvc/`, comprising HDL signal interface, independent drive/monitor BFMs, HVL abstract and concrete proxies, UVM agent, coverage, sequences, filelists and demo. Existing flat-layout APB UVC files at the repository root are **not to be changed** by this milestone.
 
-## Decision status legend
+This contract describes *intended architecture*, not a claim that code has been generated, compiled, simulated or accepted by a simulator. Accepted decisions can change only by a recorded, reviewed ADR amendment. Execution status belongs in `WORK_STATUS.md`.
 
-- **ACCEPTED_FOR_POC** — agreed for the proof of concept, still subject to measurements and executable validation.
-- **PROPOSED** — current preference, may change after evidence/review.
-- **UNRESOLVED** — spec/tool decision required before implementation is claimed complete.
+## Decision states
 
-## Accepted for POC (not universal UVM laws)
+- **ACCEPTED_FOR_POC:** approved design to test, **not** proven implementation.
+- **PROPOSED:** working choice to evaluate before coding.
+- **UNRESOLVED:** requires specification, compiler, simulator, or engineering decision.
 
-**ADR-001 — HVL-side concrete proxies [ACCEPTED_FOR_POC]**
-- Keep drivers, monitors, agents, environment, and tests free of *interface-width parameter ripple*; verify this with simultaneous 32-bit and 64-bit instances.
-- Use width-independent abstract APIs on HVL side and width-specialized concrete adapters on HVL side; BFM virtual interface types remain correctly specialized.
-- Explicit per-instance binding in the integration layer. No mandatory factory-based creation of concrete proxies.
-- Do not silently clip/extend transaction data. Explicitly select the logical transaction transport format and 4-state requirements.
-- Scoreboards/reference models work at packet/event level, not via direct DUT virtual-interface access.
-- Exceptions are possible but must be justified and reviewed, not hidden.
+## ADR-001 — HVL concrete proxies [ACCEPTED_FOR_POC]
 
-**ADR-002 — two capability APIs and two BFMs [LOGICAL_DESIGN_SELECTED, PHYSICAL_WIRING_UNRESOLVED]**
-- Separate *abstract drive* and *abstract observe* APIs; UVM driver sees drive API only; UVM monitor sees observe API only.
-- Two separate low-level BFMs (drive and monitor) share **one physical signal interface instance**. The interface owns signals/modports and possibly clocking blocks; BFMs own drive/sample protocol tasks and timing.
-- Two parameterized concrete HVL adapters bind typed handles to their respective BFMs.
-- Per-instance `bus_agent_cfg` holds the two abstract handles and active/passive configuration. Integration/top constructs concrete adapters and sets config; agent gets config once and passes handles to children.
-- Passive mode must not drive. Distinguish simulator compilation, HDL elaboration and UVM component creation.
-- A reactive subordinate driver can legitimately sample request/handshake signals: 'drive API' means authority to respond, **not** a prohibition on all reads.
+1. Use **separate abstract APB drive and monitor proxy APIs** whose types do not depend on the APB pin interface's `AW` or `DW`.
+2. Implement concrete HVL proxy classes that specialize on physical bus width and hold correspondingly typed **virtual BFM interface** handles. Do not put concrete UVM class objects inside HDL BFM interfaces.
+3. Core UVM driver, monitor, sequencer and agent are **not parameterized by AW/DW**. Demonstrate by creating two configurations of this *same UVC*: AW=32/DW=32 and AW=32/DW=64.
+4. Boundaries must reject missing handles, wrong bindings, unsupported widths and information loss. Define 4-state data transport before generation; no implicit casting/truncation.
+5. Explicit adapter construction in integration code is preferred for the first POC; factory registration is not a requirement.
 
-## Proposed POC physical wiring [PROPOSED — NEEDS COMPILER TEST]
+## ADR-002 — separate APIs; two BFMs share one signal interface [ACCEPTED LOGIC; WIRING PROPOSED]
 
-- Implement driver and monitor BFMs as parameterized SV **interfaces**, each exposing tasks, attached through **ordinary signal ports** to the same shared pin interface in `hdl_top`.
-- This avoids a known virtual-interface portability concern when one interface contains a port referencing another interface (see 2024 DVCon Section III-D). Do **not** generate `interface drv_bfm(bus_if.mp pins)` plus a virtual handle to drv_bfm and assert it is portable.
-- Alternative harness/bind wiring may be explored in a separate comparison experiment.
-- If module BFMs are proposed instead, describe a valid callable transport path; a module instance is not a virtual interface.
-- Actual emulation compatibility is **UNRESOLVED** until emulation tools validate the chosen HDL/HVL transport.
+1. One `apb_if` per bus instance owns physical signals, modports and optionally clocking blocks. **No protocol drive/receive tasks inside the signal interface.**
+2. A separate parameterized **driver BFM interface** owns active APB master drive and handshake tasks.
+3. A separate parameterized **monitor BFM interface** owns passive sampling and transfer reconstruction.
+4. Both BFMs connect to the **same `apb_if` instance**, not to separate copies of pins. There must be no unintended multiple drivers.
+5. Distinct non-parameterized abstract drive and observe proxy classes prevent monitor code using the drive capability through its configured API.
+6. One per-instance `apb_agent_cfg` holds both base handles (drive handle optional when passive) and active/passive policy. The integration layer binds and registers cfg with a specific `uvm_config_db#(apb_agent_cfg)` path; the UVM agent retrieves once and passes handles to driver and monitor.
+7. Initial BFM implementation: **SV interfaces with ordinary typed signal ports** mapped to shared `apb_if` pins in `examples/apb_hdl_top.sv`. Interface-typed interface ports plus virtual BFM handles are **not assumed portable** under the restriction described in DVCon 2024.
+8. The exact monitor-to-HVL transport path and clock-edge scheduling need compile/simulation evidence. Modports alone are insufficient for race-free sampling.
+9. Passive APB agent must still observe valid transfers, with no active drive from its agent. Compiling, elaborating, instantiating and activating components are distinct stages.
 
-## Other working defaults (reviewable, not fixed by DVCon)
+## APB-only functional scope [PROPOSED; document revision]
 
-- A simple deterministic translation can live in a scoreboard `write_*()` helper; a standalone predictor is optional. Separate stateful prediction when complexity/reuse requires it.
-- Group related features in one scoreboard where this remains maintainable; split unrelated features into separate checkers/scoreboards.
-- Build a UVC per meaningful protocol/interface when justified, not one full agent for every individual status bit. Use simple monitor/assertion where sufficient.
-- A monitor must publish transactions at a **defined handshake/acceptance boundary**. Any reset policy must follow a written DUT reset contract; never assume all pending transactions flush or drain.
-- Packages and filelists separate optional UVCs so unused verification code can be **omitted from compilation**. `is_active` alone is a runtime behavior choice.
+- First POC acts as an **APB master agent** with passive bus monitor and an independent, small example slave DUT. A reusable subordinate responder/driver is out of scope for milestone 1.
+- Select APB3 or APB4 explicitly before generating RTL; if APB4 is selected, define `PSTRB`, `PPROT` and byte strobe width `DW/8`; do not mix revisions without documenting the subset.
+- Support one APB transfer at a time on each instance. Master drives setup then access, holds mandatory controls/data stable through `PREADY=0` wait states, and finishes only at `PSEL && PENABLE && PREADY`. Observed transaction publication must be aligned to completion.
+- Cover read/write, idle, back-to-back, wait-state, reset, and error behavior where the chosen APB revision permits.
+- Two widths (32/64) are test instances of **one source implementation**, not two protocol UVCs. Monitor transactions must not be silently narrowed.
+- Reset drive/observation behavior must be documented explicitly; do not guess unspecified rules from a separate DUT/bridge project.
+- One example slave DUT and tests live under `poc/apb_uvc/examples` and `tests`, distinct from reusable UVC core.
+- UVC-local protocol assertions and coverage are allowed. DUT-specific mapping/prediction/scoreboards do **not** belong in this generic APB UVC core.
+- No AHB, AXI, UCIe, reset-event UVC, multi-UVC environment or bridge in this phase.
 
-## Component ownership
+## Packaging and boundaries
 
-| Layer | Owns | Must not silently do |
+`poc/apb_uvc/` is the **reusable delivered unit**. It must carry `hdl/`, `hvl/`, `filelists/`, documentation, and sample integration. Its class packages and HDL interfaces remain **separate SystemVerilog compilation units**: an SV package cannot contain interface declarations.
+
+| Layer in single UVC | Responsibility | Forbidden shortcut |
 |---|---|---|
-| `tb/interfaces` | Pins, modports, optional clocking blocks | Hide significant protocol sequencing in undocumentable top glue |
-| `tb/bfm` | Timed driving/sampling and signal-level protocol operations | Construct UVM transactions in synthesizable/emulation-target code |
-| `uvc/*/api` | Width-independent drive/observe contracts | Expose wrong-capability operations |
-| `uvc/*/adapter` | Typed BFM binding and width/representation conversion | Silently truncate or bind wrong physical instance |
-| `uvc/*/agent` | UVM driver, monitor, sequencer and instance configuration | Depend unnecessarily on physical bus widths |
-| `env/scoreboards` | Expected/actual matching and transaction-level checks | Sample raw DUT pins |
-| `env/reference_models` | Complex stateful prediction if needed | Duplicate DUT implementation as oracle |
-| `sim/filelists` | Build-dependent source selection | Always compile unused optional UVCs without justification |
+| `hdl/apb_if.sv` | Physical APB signals and modports/clocking | Mix in UVM class API or long drive task library |
+| `hdl/apb_driver_bfm_if.sv` | Timed APB master drive | Access wrong interface instance |
+| `hdl/apb_monitor_bfm_if.sv` | Passive APB observation | Drive APB pins or construct UVM class objects in HDL |
+| `hvl/api/` + `types/` | Non-width-parameterized APB protocol APIs and transaction | Expose typed physical VIF through core UVM classes |
+| `hvl/adapter/` | Width-specialized virtual BFM binding and conversion | Silently lose 4-state or upper data bits |
+| `hvl/agent/` + `config/` | UVM APB agent and per-instance handle setup | Retrieve arbitrary global config or silently share instance cfg |
+| `filelists/` | Separate HDL/HVL/core/demo compile units | Assume runtime `is_active` removes compile load |
+| `examples/` + `tests/` | Demo slave, top, acceptance tests | Be mandatory dependencies of a delivered UVC core |
 
-## Open technical decisions [UNRESOLVED]
+## Build and acceptance gates
 
-- Chosen transaction payload representation for widths beyond 64 bits (fixed maximum, bytes, packed chunks, or another format), plus X/Z semantics.
-- Monitor BFM → HVL adapter delivery mechanism and event ordering (polling, task call, FIFO, callback, etc.).
-- Clocking block location, race-free sampling/driving, and reset synchronization.
-- Exact simulator, UVM library, supported package order and versioned compilation commands.
-- Whether the optional high-level compile partitions provide measurable build/runtime savings.
-- Official protocol-specific reset/handshake rules once a real bus is selected.
+1. Manifest and dependency graph are reviewable and consistent with `DIRECTORY_ARCHITECTURE.md`.
+2. Named simulator compiles the **same APB UVC class definitions** for 32-bit and 64-bit APB instances in one test.
+3. Driver and monitor BFMs share each instance's single signal interface; no conflicting drivers, cross-wiring or invalid virtual interface types.
+4. APB setup/access/wait-state behavior and monitor completion sampling pass directed tests; include intentional error/fault injection expected to fail.
+5. Passive agent works as observer; tool-specific build variant may be demonstrated separately.
+6. Accurate coverage/validation evidence shows tools, version, command, log and Git SHA. **No unexecuted pass claims**.
+7. Compare implementation cost against a direct-virtual-interface baseline after a runnable POC. No claims of guaranteed performance or emulation compatibility.
 
-## POC acceptance criteria
+## Unresolved before code generation
 
-1. Two simultaneous interface specializations: 32-bit and 64-bit, same source definitions for core UVM components.
-2. Correct independent routing through two BFM interface pairs to two physical pin interfaces; intentional binding failures are reported.
-3. Passive-mode observe path works; no driving activity; optionally omit drive-side sources where build supports it.
-4. Directed data integrity, width edges, reset, and relevant handshake cases; deliberate DUT fault injection causes test failure.
-5. Lint is informative, but **compiler + simulator + logs** establish actual execution evidence; log tool versions.
-6. All claimed features have requirements, test names, and concrete results. No untested emulator claims.
+- APB revision and concrete signal set; reset polarity and semantics.
+- Exact lossless transaction representation, constraints and 4-state policy for DW=32 and 64.
+- Detailed port direction/clocking rules; monitor BFM → HVL observation task design.
+- Simulator and UVM version; compilation order of API/UVM/adapter package against interface definitions.
+- Whether standalone filelists meet consumer integration requirements.
 
-## Background references and limits
+## Sources and limitations
 
-- DVCon 2013, Wayne Yun / Shihua Zhang, *Deploying Parameterized Interface with UVM*: class abstraction and parameter-specialization alternatives.
-- DVCon 2018, Frank Verhoorn / Michael Baird, *Common Challenges and Solutions to Integrating a UVM Testbench in Place of a Legacy Monolithic Testing Environment*, Section II: parameter-agnostic proxy/BFM adaptation.
-- DVCon 2024, Salman Tanvir / David Crutchfield / Markus Brosch, *Working within the Parameters that SystemVerilog has constrained us to*, Sections III-C and III-D: polymorphic interface, HVL adapters, and HDL/HVL separation.
+Public DVCon papers inform the **proxy pattern and alternatives**, not our project names/directory mandates:
+- Yun & Zhang (AMD), DVCon 2013, *Deploying Parameterized Interface with UVM*.
+- Verhoorn & Baird, DVCon 2018, *Common Challenges and Solutions to Integrating a UVM Testbench in Place of a Legacy Monolithic Testing Environment*.
+- Tanvir, Crutchfield & Brosch (Infineon), DVCon 2024, *Working within the Parameters that SystemVerilog has constrained us to*, especially Sections III-C/III-D.
 
-These are public technical references. **Specific directory choices and separated APIs are project decisions, not DVCon mandates.** Respect confidentiality, copyright licences and applicable patent obligations.
+Use original code only; no confidential employer/client IP, no guessed tool validation.
