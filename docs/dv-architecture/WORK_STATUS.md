@@ -5,8 +5,8 @@
 **Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`, which merged `feature/dv-architecture-handoff`; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
 **Current commit SHA:** read actual `git rev-parse HEAD` / branch HEAD; this file cannot self-reference its own commit.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
-**Phase:** APB-only target architecture documented; **POC implementation NOT STARTED**.
-**Tool results:** No RTL/UVM compilation, simulation, regression or emulation evidenced by these docs.
+**Phase:** APB-001 protocol contract **PROPOSED** (`APB_PROTOCOL_CONTRACT.md`), awaiting owner review; **POC implementation NOT STARTED** (`poc/apb_uvc/` does not exist yet).
+**Tool results:** No RTL/UVM compilation, simulation, regression or emulation of APB UVC sources (none exist). Toolchain probe only, see *Toolchain* below.
 **Next implementer:** Claude or another authorized model/engineer.
 **Active task:** APB-001 — protocol contract.
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
@@ -24,6 +24,7 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 | DOC-001 | ADR-001: HVL concrete proxies | ACCEPTED_FOR_POC | `ADR-001-HVL-PROXY-PLACEMENT.md`; not compiler validated |
 | DOC-002 | ADR-002: distinct drive/observe APIs; 2 BFMs / 1 APB signal interface | ACCEPTED_LOGIC | `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`; wiring unresolved pending compile |
 | DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md`, `CLAUDE_GENERATION_PROMPT.md` |
+| DOC-004 | APB-001 protocol contract (revision matrix, pins, rules, reset, transaction, deps, manifest) | PROPOSED | `APB_PROTOCOL_CONTRACT.md`; traced to ARM IHI 0024D; open questions Q1–Q5 |
 | IMP-001 | POC APB interface and BFMs | NOT_STARTED | No new sources in `poc/apb_uvc/` evidenced |
 | IMP-002 | Proxy base and concrete adapters | NOT_STARTED | No compile evidence |
 | IMP-003 | Non-parameterized UVM APB components | NOT_STARTED | No compile evidence |
@@ -51,12 +52,22 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 
 ## Next tasks — in priority order
 
-- [ ] **APB-001 — Review protocol contract:** Select APB revision, optional pins, reset details, supported address/data widths, and 4-state transport semantics. Produce a testable signal table and acceptance matrix.
+- [~] **APB-001 — Review protocol contract:** Select APB revision, optional pins, reset details, supported address/data widths, and 4-state transport semantics. Produce a testable signal table and acceptance matrix. → Drafted in `APB_PROTOCOL_CONTRACT.md`; **blocked on owner answers Q1 (DW=64 vs IHI 8/16/32), Q3 (simulator), Q5 (reset assumptions)**.
 - [ ] **APB-002 — Review BFM connection legality:** Diagram ordinary signal-port wiring of two BFM interfaces to one `apb_if` instance; specify driver/monitor clocking and monitor-to-HVL return path. Note simulator/version.
 - [ ] **APB-003 — Generate minimal HDL + compile:** `apb_if.sv`, two BFMs, example HDL top and HDL filelist. Save exact command/log and fix language restrictions.
 - [ ] **APB-004 — Generate HVL types/proxies/agent + compile:** Update manifest and run a targeted smoke.
 - [ ] **APB-005 — Run APB POC:** 32-bit and 64-bit instances concurrently, read/write, waits, passive observation, reset and error where applicable, negative tests.
 - [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit, record findings and rerun failing tests.
+
+## Toolchain (this container, 2026-10-29)
+
+| Tool | Version | Status | Use |
+|---|---|---|---|
+| slang (via `pyslang`, PyPI) | 12.1.0 (`42710c788`) | Installed; smoke-checked: clean 2-instance parameterized interface → 0 errors, seeded undeclared identifier → 1 error | SV parse/elaboration only; **cannot simulate** |
+| Verilator | 5.052 (git tag) | Source build **denied by the session permission policy**; not installed | Would provide simulation evidence |
+| Ubuntu `verilator` package | 5.020 | Not installed; too old for UVM | — |
+| Commercial simulators (VCS/Xcelium/Questa/DSim) | — | Not available | Owner's target simulator UNKNOWN (Q3) |
+| UVM library | — | Not downloaded | Needed for HVL elaboration |
 
 ## Validation evidence
 
@@ -88,3 +99,21 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 ```
 
 **Rule:** One model's confidence is not a validation result. If context/tokens are low, write this handoff before starting further generation.
+
+### Latest handoff — 2026-10-29
+
+```text
+HANDOFF FROM: Claude (Claude Code session)
+REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-001-protocol-contract
+EXACT COMMIT SHA: branch HEAD (`git rev-parse HEAD`); work started from 37430cb
+GIT STATUS (including uncommitted files): clean after commit
+CURRENT TASK ID: APB-001 (design step 1)
+FILES CREATED/CHANGED: docs/dv-architecture/{APB_PROTOCOL_CONTRACT.md (new), ARCHITECTURE_CONTRACT.md, README.md, WORK_STATUS.md, REVIEW_FEEDBACK.md}
+PROVEN WORKING (with log/command): slang 12.1.0 smoke only (see Toolchain); no APB sources exist
+FAILED CHECKS (with log/command): none run on APB sources
+NOT YET RUN: all compile/simulation stages
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q1 DW=64 vs IHI 0024D §2.1.2; Q2 NUM_SEL; Q3 simulator; Q4 parity milestone; Q5 reset assumptions RST-1..7
+OPEN REVIEW FINDING IDS: RISK-001..008
+ARCHITECTURE CONTRACT/ADR AMENDED?: contract v0.8 (PROPOSED scope section only); ADR-001/002 unchanged; ADR-001 amendment proposed for Q1
+NEXT EXACT COMMAND/SMALLEST TASK: after Q1/Q5 answers, APB-003a — create poc/apb_uvc/hdl/{apb_if,apb_driver_bfm_if,apb_monitor_bfm_if}.sv, examples/{apb_example_slave,apb_hdl_top}.sv, filelists/apb_hdl.f; elaborate with slang (0 errors) and record the log
+```

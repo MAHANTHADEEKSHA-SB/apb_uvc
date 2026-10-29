@@ -14,6 +14,7 @@ The existing root-level `apb_*.sv` files are an older APB UVC implementation. Th
 6. [CLAUDE_GENERATION_PROMPT.md](CLAUDE_GENERATION_PROMPT.md): single-APB implementation brief.
 7. [WORK_STATUS.md](WORK_STATUS.md): real completed/pending work, latest checkpoint and evidence.
 8. [REVIEW_FEEDBACK.md](REVIEW_FEEDBACK.md): ChatGPT/Gemini independent review findings and required retests.
+9. [APB_PROTOCOL_CONTRACT.md](APB_PROTOCOL_CONTRACT.md): APB-001 revision/feature matrix, pin list, transfer rules, reset assumptions and transaction format traced to ARM IHI 0024D.
 
 ## Deliverable boundary
 
@@ -23,4 +24,4 @@ One `poc/apb_uvc/` directory ships its own **APB interface, driver BFM, monitor 
 
 Architecture documentation has been revised for APB-only scope; this is **not an implemented or tested UVC**. Simulator selection, APB revision/pin subset, legal BFM connectivity and monitor transport remain to be validated. Actual status and next steps are in `WORK_STATUS.md`.
 
-**Git workflow:** Feature branch `feature/dv-architecture-handoff` based on `dev`. Do not merge or migrate original APB files without explicit approval.
+**Git workflow:** One feature branch per task, based on `dev` (current: `feature/apb-001-protocol-contract`; the architecture docs came from `feature/dv-architecture-handoff`, merged in `dev` at `3f5c50b`). Do not merge or migrate original APB files without explicit approval.

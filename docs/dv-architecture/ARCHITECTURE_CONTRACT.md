@@ -1,6 +1,7 @@
 # Architecture contract — single APB UVC POC
 
-**Version:** 0.7 · **Date:** 2026-10-29
+**Version:** 0.8 · **Date:** 2026-10-29
+**Change in 0.8:** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`. Accepted ADR-001/ADR-002 text is unchanged.
 **Scope:** One reusable **APB UVC** developed under `poc/apb_uvc/`, comprising HDL signal interface, independent drive/monitor BFMs, HVL abstract and concrete proxies, UVM agent, coverage, sequences, filelists and demo. Existing flat-layout APB UVC files at the repository root are **not to be changed** by this milestone.
 
 This contract describes *intended architecture*, not a claim that code has been generated, compiled, simulated or accepted by a simulator. Accepted decisions can change only by a recorded, reviewed ADR amendment. Execution status belongs in `WORK_STATUS.md`.
@@ -34,7 +35,8 @@ This contract describes *intended architecture*, not a claim that code has been 
 ## APB-only functional scope [PROPOSED; document revision]
 
 - First POC acts as an **APB master agent** with passive bus monitor and an independent, small example slave DUT. A reusable subordinate responder/driver is out of scope for milestone 1.
-- Select APB3 or APB4 explicitly before generating RTL; if APB4 is selected, define `PSTRB`, `PPROT` and byte strobe width `DW/8`; do not mix revisions without documenting the subset.
+- **Owner decision 2026-10-29:** one UVC supports APB2, APB3, APB4 and APB5 (ARM IHI 0024D). Revision and optional features are per-instance configuration; unused features stay inactive. Default instance is APB4 with `PSTRB` (`DW/8` bits) and `PPROT`. The revision/feature legality matrix, pin list, reset assumptions and transaction format are defined in [APB_PROTOCOL_CONTRACT.md](APB_PROTOCOL_CONTRACT.md) (PROPOSED).
+- **Open conflict:** IHI 0024D §2.1.2 allows `DATA_WIDTH` 8/16/32 only, while ADR-001 §3 names a DW=64 instance. Resolution pending owner decision (`APB_PROTOCOL_CONTRACT.md` Q1, `REVIEW_FEEDBACK.md` RISK-007); ADR-001 is not changed until then.
 - Support one APB transfer at a time on each instance. Master drives setup then access, holds mandatory controls/data stable through `PREADY=0` wait states, and finishes only at `PSEL && PENABLE && PREADY`. Observed transaction publication must be aligned to completion.
 - Cover read/write, idle, back-to-back, wait-state, reset, and error behavior where the chosen APB revision permits.
 - Two widths (32/64) are test instances of **one source implementation**, not two protocol UVCs. Monitor transactions must not be silently narrowed.
@@ -70,7 +72,8 @@ This contract describes *intended architecture*, not a claim that code has been 
 
 ## Unresolved before code generation
 
-- APB revision and concrete signal set; reset polarity and semantics.
+- APB revision and concrete signal set; reset polarity and semantics — **proposed** in `APB_PROTOCOL_CONTRACT.md`, awaiting review.
+- DW=64 versus the IHI 0024D 8/16/32 data-width limit (RISK-007).
 - Exact lossless transaction representation, constraints and 4-state policy for DW=32 and 64.
 - Detailed port direction/clocking rules; monitor BFM → HVL observation task design.
 - Simulator and UVM version; compilation order of API/UVM/adapter package against interface definitions.

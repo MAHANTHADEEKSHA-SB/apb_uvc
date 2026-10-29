@@ -61,6 +61,17 @@
 - Does any generated file create a second protocol UVC or modify the older root-level APB UVC without authorization?
 - **Evidence required:** branch diff restricted to docs and new `poc/apb_uvc/` files.
 
+### RISK-007 — DW=64 is outside ARM IHI 0024D
+- **Status:** OPEN; needs owner decision (`APB_PROTOCOL_CONTRACT.md` Q1).
+- IHI 0024D §2.1.2 and Table 2-1 state that `PWDATA`/`PRDATA` can be 8, 16 or 32 bits wide. ADR-001 §3 and the acceptance gates demonstrate width independence with a DW=64 instance, which no APB revision defines. A DW=64 test would therefore validate a non-standard interface, and `PSTRBCHK` granularity (Table 5-1, 1–4 bits) would also be exceeded.
+- **Proposed remedy:** ADR-001 amendment — use DW=32 + DW=16 as the spec-legal pair; optionally keep DW=64 behind an explicit non-standard-extension switch, off by default.
+- **Evidence required:** owner decision recorded; ADR-001 amended text; cfg check CFG-04 test.
+
+### RISK-008 — APB5 superset pin interface versus ADR-001 "maximum-footprint" rejection
+- **Status:** OPEN (design review).
+- The owner requires all APB2–APB5 features in one UVC, so `apb_if` declares the APB5 pin superset with runtime presence flags. ADR-001 rejected a *width* maximum-footprint interface; widths here stay parameterized, but reviewers should confirm that the unused-pin, tie-off and debug costs are acceptable and that absent-input defaults (`PREADY`=1, `PSLVERR`=0, IHI Table B-1) cannot mask a real connection fault.
+- **Evidence required:** a test where a present-but-unconnected `PREADY` (Z/X) is reported rather than defaulted.
+
 ## Closed findings
 
 _None. No SV/UVM source has been generated, compiled or simulated as part of this documentation review._
