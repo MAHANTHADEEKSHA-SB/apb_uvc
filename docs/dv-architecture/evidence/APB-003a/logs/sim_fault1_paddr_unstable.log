@@ -1,0 +1,7 @@
+165000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_UNSTABLE_IN_ACCESS] cycle=17: changed during ACCESS: PADDR
+205000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_UNSTABLE_IN_ACCESS] cycle=21: changed during ACCESS: PADDR
+SMOKE_INFO [A DW=32] fault APB_FAULT_PADDR_UNSTABLE -> monitor APB_MON_ERR_UNSTABLE_IN_ACCESS count=2, total errors=2
+SMOKE_INFO [B DW=16] 10 transfers checked, monitor errors=0
+SMOKE_SUMMARY mode=APB_FAULT_PADDR_UNSTABLE A.failures=0 B.failures=0 B.monitor_errors=0
+SMOKE_RESULT: PASS
+- filelists/../tests/apb_hdl_smoke.sv:36: Verilog $finish

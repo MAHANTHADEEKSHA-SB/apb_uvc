@@ -1,0 +1,7 @@
+165000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_PSEL_DROPPED_IN_ACCESS] cycle=17: PSEL deasserted while PREADY LOW
+195000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_PSEL_DROPPED_IN_ACCESS] cycle=20: PSEL deasserted while PREADY LOW
+SMOKE_INFO [A DW=32] fault APB_FAULT_DROP_PSEL_IN_WAIT -> monitor APB_MON_ERR_PSEL_DROPPED_IN_ACCESS count=2, total errors=2
+SMOKE_INFO [B DW=16] 10 transfers checked, monitor errors=0
+SMOKE_SUMMARY mode=APB_FAULT_DROP_PSEL_IN_WAIT A.failures=0 B.failures=0 B.monitor_errors=0
+SMOKE_RESULT: PASS
+- filelists/../tests/apb_hdl_smoke.sv:36: Verilog $finish

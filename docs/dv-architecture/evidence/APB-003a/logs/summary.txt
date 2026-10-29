@@ -1,0 +1,15 @@
+date:      2026-10-29T10:01:49Z
+git:       50607121dfc980ac89bbb768d30e768c9df98e68
+slang:     12.1.0+42710c788
+verilator: Verilator 5.020 2024-01-01 rev (Debian 5.020-1)
+
+slang elaborate (std)              PASS SLANG_RESULT: errors=0 diagnostics=0 slang=12.1.0+42710c788
+slang elaborate (dw64)             PASS SLANG_RESULT: errors=0 diagnostics=0 slang=12.1.0+42710c788
+verilator build (std)              PASS 71 warnings, see <out>/verilator_build_std.log
+sim positive                       PASS SMOKE_SUMMARY mode=APB_FAULT_NONE A.failures=0 B.failures=0 B.monitor_errors=0
+sim fault1_paddr_unstable          PASS SMOKE_SUMMARY mode=APB_FAULT_PADDR_UNSTABLE A.failures=0 B.failures=0 B.monitor_errors=0
+sim fault2_skip_setup              PASS SMOKE_SUMMARY mode=APB_FAULT_SKIP_SETUP A.failures=0 B.failures=0 B.monitor_errors=0
+sim fault3_drop_psel_in_wait       PASS SMOKE_SUMMARY mode=APB_FAULT_DROP_PSEL_IN_WAIT A.failures=0 B.failures=0 B.monitor_errors=0
+verilator build (dw64)             PASS 72 warnings, see <out>/verilator_build_dw64.log
+sim positive_dw64_extension        PASS SMOKE_SUMMARY mode=APB_FAULT_NONE A.failures=0 B.failures=0 B.monitor_errors=0
+HDL_SMOKE_OVERALL: PASS
