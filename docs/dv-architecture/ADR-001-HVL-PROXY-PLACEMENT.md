@@ -2,10 +2,10 @@
 
 **Status:** Accepted for first proof of concept (revisit after measured results)
 **Decision date:** 2026-10-29
-**Scope:** Parameterized reusable UVM protocol UVCs; not a universal ban on alternative architectures.
+**Scope:** One standalone APB UVC POC at `poc/apb_uvc/`; two bus-width instances of the same UVC. This is not a universal rule for other protocols.
 
 ## Context
-SystemVerilog's parameterized virtual interfaces have specialization-specific types. When drivers, monitors, agents, environments and tests explicitly depend on those types, interface parameters can ripple through the UVM hierarchy. We want a 32-bit and a 64-bit instance coexisting in the same simulation with one shared definition of each core UVM component.
+For the APB UVC POC, SystemVerilog's parameterized virtual interfaces have specialization-specific types. When drivers, monitors, agents, environments and tests explicitly depend on those types, interface parameters can ripple through the UVM hierarchy. We want a 32-bit and a 64-bit instance coexisting in the same simulation with one shared definition of each core UVM component.
 
 ## Decision
 1. Define non-parameterized, protocol-semantic **drive** and **observe** base APIs on the HVL side. Separate these contracts by capability; a passive monitor should not receive driving privileges by default.
@@ -27,7 +27,7 @@ SystemVerilog's parameterized virtual interfaces have specialization-specific ty
 
 ## Architectural boundary
 ```text
-HVL:
+HVL (one APB UVC, two width specializations):
   UVM sequence -> driver -> drive_api_base -> drive_adapter #(DW) --typed virtual BFM--+
   UVM monitor <- observe_api_base <- observe_adapter #(DW) <--monitor transport-------+-- HDL BFM #(DW) <-> DUT pins
 
@@ -37,33 +37,32 @@ HDL:
   Parameterized synthesizable-where-needed driver and monitor BFMs / signal-facing interfaces.
 ```
 
-## Source/package organization
-```text
-uvc/simple_bus/
-  item/simple_bus_txn.sv
-  api/simple_bus_drive_api.sv
-  api/simple_bus_observe_api.sv
-  adapter/simple_bus_drive_adapter.sv
-  adapter/simple_bus_observe_adapter.sv
-  agent/simple_bus_driver.sv
-  agent/simple_bus_monitor.sv
-  agent/simple_bus_sequencer.sv
-  agent/simple_bus_agent.sv
-  pkg/simple_bus_api_pkg.sv
-  pkg/simple_bus_uvc_pkg.sv
-  pkg/simple_bus_adapter_pkg.sv
+## APB UVC deliverable and source/package ownership
 
-tb/interfaces/simple_bus_if.sv
- tb/bfm/simple_bus_driver_bfm.sv
- tb/bfm/simple_bus_monitor_bfm.sv
- tb/top/hdl_top.sv
- tb/top/hvl_top.sv
-sim/filelists/simple_bus_api.f
-sim/filelists/simple_bus_bfm.f
-sim/filelists/simple_bus_core.f
-sim/filelists/simple_bus_adapter.f
+The **one transferable UVC** includes all of the following; do not split APB BFMs or pins into global TB directories:
+
+```text
+poc/apb_uvc/
+  hdl/apb_if.sv                         # physical APB signals/modports
+  hdl/apb_driver_bfm_if.sv              # timed master-drive BFM interface
+  hdl/apb_monitor_bfm_if.sv             # passive monitor BFM interface
+  hvl/types/apb_transaction.sv
+  hvl/api/apb_drive_proxy_base.sv
+  hvl/api/apb_monitor_proxy_base.sv
+  hvl/adapter/apb_drive_proxy.sv
+  hvl/adapter/apb_monitor_proxy.sv
+  hvl/config/apb_agent_cfg.sv
+  hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv
+  hvl/pkg/{apb_api_pkg,apb_uvc_pkg,apb_adapter_pkg}.sv
+  hvl/sequences/
+  hvl/coverage/
+  filelists/{apb_hdl,apb_hvl,apb_poc}.f
+  examples/{apb_example_slave,apb_hdl_top,apb_hvl_top}.sv
+  tests/
+  README.md
 ```
-Organize compilation by actual dependency order; verify tool-specific package/interface compilation constraints rather than assuming this illustrative order always works. Optional UVCs need independent packages/filelists if compile-load reduction is required.
+
+The examples and tests demonstrate integration; they are not mandatory for consumers of the APB UVC core. The GitHub repo already has a flat-layout APB UVC: **leave those original files untouched**; this POC lives under `poc/apb_uvc/`. The interface and BFM interface declarations compile as HDL units and are **not placed inside class packages**. Demonstrate DW=32 and DW=64 as **two instances of the same source definitions**. Monitor transport, package order and signal port connections require executable validation.
 
 ## Contract requirements
 - Base APIs express transaction semantics, not arbitrary raw pin pokes unless justified.
