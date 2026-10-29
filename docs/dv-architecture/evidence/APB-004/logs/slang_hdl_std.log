@@ -1,0 +1,7 @@
+$ python3 -I poc/apb_uvc/scripts/slang_elab.py -F poc/apb_uvc/filelists/apb_hdl_smoke.f --top apb_hdl_smoke
+SHA 386e64d5130748329f8148507837819e7d9f6456 dirty=no
+SLANG_RESULT: errors=0 warnings=0 slang=12.1.0+42710c788
+Top level design units:
+    apb_hdl_smoke
+
+exit=0
