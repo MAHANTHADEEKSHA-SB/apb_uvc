@@ -1,7 +1,7 @@
 # APB UVC — target directory architecture (single-UVC POC)
 
 **Status:** Target layout approved for APB-only proof of concept; exact compilation and BFM wiring require validation.
-**Scope:** Exactly **one reusable APB UVC**. The 32-bit and 64-bit configurations are two instances of the same UVC, not two UVC products. No AHB, AXI, reset UVC, generic bus framework, or subsystem bridge scoreboard is in this milestone.
+**Scope:** Exactly **one reusable APB UVC**. The 32-bit and 16-bit configurations (ADR-001 Amendment A1) are two instances of the same UVC, not two UVC products. No AHB, AXI, reset UVC, generic bus framework, or subsystem bridge scoreboard is in this milestone.
 
 ## Repository integration
 
@@ -92,9 +92,9 @@ SystemVerilog **interface definitions cannot live inside a class/package**. The 
               │             └─ apb_monitor_bfm_if #(32)
               │                   ⇅ typed HVL adapters ⇅ base APIs
               │                      apb_agent_cfg A → UVM agent A
-              └── Instance B: DW=64, AW=32
-                  apb_if64 ─┬─ apb_driver_bfm_if #(64)
-                            └─ apb_monitor_bfm_if #(64)
+              └── Instance B: DW=16, AW=32
+                  apb_if16 ─┬─ apb_driver_bfm_if #(16)
+                            └─ apb_monitor_bfm_if #(16)
                                   ⇅ typed HVL adapters ⇅ base APIs
                                      apb_agent_cfg B → UVM agent B
 ```
@@ -113,7 +113,7 @@ One `apb_agent_cfg` per agent instance carries the two **base-class handles**. T
 - Identify the supported APB revision and optional pins explicitly (e.g. APB4 `PSTRB`, `PPROT`); don't fabricate APB fields or assume every APB variant includes them.
 - Master must implement setup and access phases, hold required signals stable through wait states and sample completion at the valid `PSEL && PENABLE && PREADY` boundary.
 - Include APB read and write, back-to-back transfers, inserted wait states, `PSLVERR` reporting if supported, reset and passive observation.
-- For `DW`=32 and 64, specify a lossless transaction representation, `PSTRB` relation if supported, and 4-state handling. Do not silently truncate wide data.
+- For `DW`=32 and 16 (and the opt-in DW=64 extension), specify a lossless transaction representation, `PSTRB` relation if supported, and 4-state handling. Do not silently truncate wide data.
 - The example slave is a POC fixture and must not be treated as the APB specification itself.
 
 ## Scope exclusions for milestone 1
@@ -125,5 +125,5 @@ No AHB/AXI/UCIe UVC; no debug bridge; no second protocol agent; no general-purpo
 - First produce a dependency diagram, file manifest, and APB-specific acceptance criteria.
 - Then incrementally generate and compile HDL interface/BFMs, API, adapters, UVM agent, example top, tests.
 - Record exact commands/results in `WORK_STATUS.md`; review findings in `REVIEW_FEEDBACK.md`.
-- A 32/64 dual-instance test demonstrates parameter independence; one-UVC deliverability is demonstrated by using only files in `poc/apb_uvc/` plus documented external prerequisites.
+- A 32/16 dual-instance test demonstrates parameter independence; one-UVC deliverability is demonstrated by using only files in `poc/apb_uvc/` plus documented external prerequisites.
 - No simulator/emulator support is claimed before actual execution.

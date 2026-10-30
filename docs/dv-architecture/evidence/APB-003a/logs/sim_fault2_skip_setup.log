@@ -1,0 +1,15 @@
+85000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=9: PSEL & PENABLE without a SETUP cycle
+105000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=11: PSEL & PENABLE without a SETUP cycle
+125000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=13: PSEL & PENABLE without a SETUP cycle
+165000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=17: PSEL & PENABLE without a SETUP cycle
+205000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=21: PSEL & PENABLE without a SETUP cycle
+215000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=22: PSEL & PENABLE without a SETUP cycle
+235000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=24: PSEL & PENABLE without a SETUP cycle
+255000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=26: PSEL & PENABLE without a SETUP cycle
+275000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=28: PSEL & PENABLE without a SETUP cycle
+SMOKE_INFO [A DW=32] fault APB_FAULT_SKIP_SETUP -> monitor APB_MON_ERR_ACCESS_WITHOUT_SETUP count=9, total errors=9
+295000 APB_MON_ERROR TOP.apb_hdl_smoke.u_top.mon_a.flag [APB_MON_ERR_ACCESS_WITHOUT_SETUP] cycle=30: PSEL & PENABLE without a SETUP cycle
+SMOKE_INFO [B DW=16] 10 transfers checked, monitor errors=0
+SMOKE_SUMMARY mode=APB_FAULT_SKIP_SETUP A.failures=0 B.failures=0 B.monitor_errors=0
+SMOKE_RESULT: PASS
+- filelists/../tests/apb_hdl_smoke.sv:36: Verilog $finish

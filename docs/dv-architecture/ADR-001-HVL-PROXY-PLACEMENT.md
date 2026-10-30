@@ -1,11 +1,18 @@
 # ADR-001 — HVL-side concrete proxy placement
 
-**Status:** Accepted for first proof of concept (revisit after measured results)
+**Status:** Accepted for first proof of concept (revisit after measured results); **amended A1 on 2026-10-29**
 **Decision date:** 2026-10-29
 **Scope:** One standalone APB UVC POC at `poc/apb_uvc/`; two bus-width instances of the same UVC. This is not a universal rule for other protocols.
 
+## Amendment A1 — width pair (2026-10-29, approved by repository owner)
+
+- **Reason:** ARM IHI 0024D §2.1.2 and Table 2-1 define `PWDATA`/`PRDATA` widths of 8, 16 or 32 bits only, in every APB revision. A DW=64 instance would validate a non-standard interface (`REVIEW_FEEDBACK.md` RISK-007).
+- **Change:** the width-independence demonstration uses **AW=32/DW=32 and AW=32/DW=16**. Every "64-bit instance" requirement below now reads "16-bit instance".
+- **DW=64 retained as a non-standard extension:** off by default; enabled only by the HDL parameter `ALLOW_NONSTANDARD_DW=1` on the instance and `apb_agent_cfg.allow_nonstandard_width=1`. It may be tested, but it must never be reported as APB-compliant.
+- Everything else in this ADR is unchanged.
+
 ## Context
-For the APB UVC POC, SystemVerilog's parameterized virtual interfaces have specialization-specific types. When drivers, monitors, agents, environments and tests explicitly depend on those types, interface parameters can ripple through the UVM hierarchy. We want a 32-bit and a 64-bit instance coexisting in the same simulation with one shared definition of each core UVM component.
+For the APB UVC POC, SystemVerilog's parameterized virtual interfaces have specialization-specific types. When drivers, monitors, agents, environments and tests explicitly depend on those types, interface parameters can ripple through the UVM hierarchy. We want a 32-bit and a 16-bit instance (DW=16 per ADR-001 Amendment A1) coexisting in the same simulation with one shared definition of each core UVM component.
 
 ## Decision
 1. Define non-parameterized, protocol-semantic **drive** and **observe** base APIs on the HVL side. Separate these contracts by capability; a passive monitor should not receive driving privileges by default.
@@ -14,7 +21,7 @@ For the APB UVC POC, SystemVerilog's parameterized virtual interfaces have speci
 4. Non-parameterized UVM drivers/monitors hold base API handles. The integration/top layer creates and configures specialized adapters and fails clearly on missing handles or incompatible width configurations.
 5. Start with **explicit construction and typed binding** in top integration, not abstract-class factory registration/overrides. Factory-based selection can be added if a real need arises and UVM/tool support is validated.
 6. Record and test transport representation, legal width ranges, 2-state/4-state semantics, and truncation/extension policy. Do not silently truncate.
-7. Build 32-bit and 64-bit instances concurrently. Verify independent routing, correctness, error cases, and no parameter ripple in core UVM classes.
+7. Build 32-bit and 16-bit instances (DW=16 per ADR-001 Amendment A1) concurrently. Verify independent routing, correctness, error cases, and no parameter ripple in core UVM classes.
 
 ## Alternatives considered
 | Alternative | Benefit | Tradeoff / disposition |
@@ -62,7 +69,7 @@ poc/apb_uvc/
   README.md
 ```
 
-The examples and tests demonstrate integration; they are not mandatory for consumers of the APB UVC core. The GitHub repo already has a flat-layout APB UVC: **leave those original files untouched**; this POC lives under `poc/apb_uvc/`. The interface and BFM interface declarations compile as HDL units and are **not placed inside class packages**. Demonstrate DW=32 and DW=64 as **two instances of the same source definitions**. Monitor transport, package order and signal port connections require executable validation.
+The examples and tests demonstrate integration; they are not mandatory for consumers of the APB UVC core. The GitHub repo already has a flat-layout APB UVC: **leave those original files untouched**; this POC lives under `poc/apb_uvc/`. The interface and BFM interface declarations compile as HDL units and are **not placed inside class packages**. Demonstrate DW=32 and DW=16 (DW=16 per ADR-001 Amendment A1) as **two instances of the same source definitions**. Monitor transport, package order and signal port connections require executable validation.
 
 ## Contract requirements
 - Base APIs express transaction semantics, not arbitrary raw pin pokes unless justified.
@@ -78,10 +85,10 @@ The examples and tests demonstrate integration; they are not mandatory for consu
 - The return path from HDL monitor BFM to HVL is **not** solved by simply introducing an observe adapter; choose concrete callback/polling/FIFO approach with the target tools.
 - Proxies do **not** automatically yield synthesis/emulation compatibility. Ensure each HDL task/transport construct is supported by the chosen platform.
 - Fixed maximum-width transactions are simple but limited. A dynamic or chunked representation may be better for many widths.
-- Formal type compatibility still matters; a `virtual if #(32)` cannot substitute for `virtual if #(64)`.
+- Formal type compatibility still matters; a `virtual if #(32)` cannot substitute for `virtual if #(16)`.
 
 ## POC acceptance gates
-1. Same core UVM driver/monitor/agent/env/test class declarations serve concurrent 32- and 64-bit instances.
+1. Same core UVM driver/monitor/agent/env/test class declarations serve concurrent 32- and 16-bit instances (DW=16 per ADR-001 Amendment A1).
 2. Verified per-instance binding and isolation; swapping physical handles is caught in tests/config checks.
 3. Zero silent truncation and correct round-trip payload including width-specific edge cases.
 4. Monitor capture works with real simulator; no scheduling races in tests.

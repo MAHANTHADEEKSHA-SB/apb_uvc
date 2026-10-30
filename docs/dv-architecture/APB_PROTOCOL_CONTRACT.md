@@ -1,0 +1,281 @@
+# APB protocol contract — APB-001 (single APB UVC POC)
+
+**Status:** PROPOSED — Q1/Q3 decided by the owner; Q2/Q4/Q5 implemented on the proposed defaults, pending review. Step 2 (HDL) implemented against this contract; see §11 for evidence.
+**Date:** 2026-10-29
+**Task:** APB-001 (`WORK_STATUS.md`)
+**Normative source:** Arm *AMBA APB Protocol Specification*, ARM IHI 0024D (ID041221, 09 April 2021), referred to below as **[IHI]**. The PDF is Arm copyright and is not stored in this repository.
+
+## How to read this document
+
+Every rule carries one of three tags. Only **[IHI §x]** rules are protocol requirements.
+
+| Tag | Meaning |
+|---|---|
+| **[IHI §x]** | Requirement or definition taken from the cited section/table of IHI 0024D |
+| **[ASSUMPTION]** | Our proposed default where IHI 0024D is silent; must be approved, may change |
+| **[DECISION]** | Project decision already taken by the repository owner |
+
+---
+
+## 1. Revision strategy
+
+- **[DECISION 2026-10-29]** One APB UVC must be usable for **APB2, APB3, APB4 and APB5** interfaces. Every feature exists in the UVC; an instance enables only what its interface has. Unused features stay inactive.
+- **[DECISION 2026-10-29]** Default instance configuration is **APB4** with `PSTRB` and `PPROT` present.
+- The revision names are defined by [IHI Preface, "APB Revisions"]: APB2 = AMBA 2 (IHI 0011A), APB3 = Issue B (adds `PREADY`, `PSLVERR`), APB4 = Issue C (adds `PPROT`, `PSTRB`), APB5 = Issue D (adds wake-up, user signals, parity).
+
+### Proposed mechanism [ASSUMPTION]
+
+1. `apb_if` declares the **APB5 superset** of pins from [IHI Table B-1] and [IHI Table B-2]. Widths remain SV parameters, so this is *not* the "maximum-footprint interface" rejected by ADR-001; only feature pins are a superset.
+2. **Feature presence is per-instance runtime configuration** in `apb_agent_cfg` (revision + per-feature flags), validated against the legality matrix in §2 before the run phase. The same compiled image can therefore test an APB3 and an APB4 completer.
+3. The configuration is pushed down to both BFMs through the proxies (a `configure()` call at start of simulation), so HDL drive/sample code knows which pins are live.
+4. Absent **Requester outputs** are driven to 0 ([IHI A.1]: signals not required to be valid are recommended driven to zero). Absent **Completer inputs** are replaced inside the monitor/driver BFMs by the defaults of [IHI Table B-1] ("Optional signals have a default that should be used for any un-driven inputs"): `PREADY`=1, `PSLVERR`=0, `PPROT`=0b000.
+5. SV cannot declare zero-width ports, but [IHI §2.1] defines width property 0 as "signal not present". Physical user-signal widths are therefore `max(W,1)` with a separate presence flag.
+
+---
+
+## 2. Feature / signal legality matrix
+
+Codes from [IHI Table B-1/B-2]: **Y** mandatory, **N** must not be present, **O** optional, **OO** optional for output ports and mandatory for inputs, **C** must be present if property True, **OC** optional but only if property True.
+
+The UVC is a **Requester** (master). "OO" therefore means: our Requester always has the input; if a Completer lacks the output, the integrator ties the input to the default.
+
+### 2.1 Base and optional signals [IHI Table B-1]
+
+| Signal | Width | Dir (Requester view) | Default | APB5 | APB4 | APB3 | APB2 | `apb_agent_cfg` control |
+|---|---|---|---|---|---|---|---|---|
+| `PCLK` | 1 | in | — | Y | Y | Y | Y | — |
+| `PRESETn` | 1 | in | — | Y | Y | Y | Y | — |
+| `PADDR` | `ADDR_WIDTH` | out | — | Y | Y | Y | Y | — |
+| `PPROT` | 3 | out | 0b000 | O | O | N | N | `has_pprot` |
+| `PSELx` | 1 per Completer | out | — | Y | Y | Y | Y | — |
+| `PENABLE` | 1 | out | — | Y | Y | Y | Y | — |
+| `PWRITE` | 1 | out | — | Y | Y | Y | Y | — |
+| `PWDATA` | `DATA_WIDTH` | out | — | Y | Y | Y | Y | — |
+| `PSTRB` | `DATA_WIDTH/8` | out | — | O | O | N | N | `has_pstrb` |
+| `PREADY` | 1 | in | 0b1 | OO | OO | OO | N | implied by revision (≥APB3) |
+| `PRDATA` | `DATA_WIDTH` | in | — | Y | Y | Y | Y | — |
+| `PSLVERR` | 1 | in | 0b0 | OO | OO | OO | N | implied by revision (≥APB3) |
+| `PWAKEUP` | 1 | out | — | C (`Wakeup_Signal`) | N | N | N | `has_pwakeup` |
+| `PAUSER` | `USER_REQ_WIDTH` | out | — | OC | N | N | N | `user_req_width` (0 = absent) |
+| `PWUSER` | `USER_DATA_WIDTH` | out | — | OC | N | N | N | `user_data_width` (0 = absent) |
+| `PRUSER` | `USER_DATA_WIDTH` | in | — | OC | N | N | N | `user_data_width` |
+| `PBUSER` | `USER_RESP_WIDTH` | in | — | OC | N | N | N | `user_resp_width` (0 = absent) |
+
+### 2.2 Parity check signals [IHI Table B-2, Table 5-1]
+
+Present only on APB5 with `Check_Type = Odd_Parity_Byte_All` ([IHI §5.2]; Check_Type False/undeclared means no check signals). `apb_agent_cfg` control: `check_type` ∈ {`APB_CHECK_NONE`, `APB_CHECK_ODD_PARITY_BYTE_ALL`}.
+
+| Check signal | Covers | Width | Dir | Check-enable term [IHI Table 5-1] | Presence |
+|---|---|---|---|---|---|
+| `PADDRCHK` | `PADDR` | ceil(`ADDR_WIDTH`/8) | out | `PSEL` | C |
+| `PCTRLCHK` | `PPROT`, `PWRITE` | 1 | out | `PSEL` | C |
+| `PSELxCHK` | `PSELx` | 1 per `PSELx` | out | `PRESETn` | C |
+| `PENABLECHK` | `PENABLE` | 1 | out | `PSEL` | C |
+| `PWDATACHK` | `PWDATA` | `DATA_WIDTH/8` | out | `PSEL & PWRITE` | C |
+| `PSTRBCHK` | `PSTRB` | 1 | out | `PSEL & PWRITE` | C |
+| `PREADYCHK` | `PREADY` | 1 | in | `PSEL & PENABLE` | C |
+| `PRDATACHK` | `PRDATA` | `DATA_WIDTH/8` | in | `PSEL & PENABLE & PREADY & !PWRITE` | C |
+| `PSLVERRCHK` | `PSLVERR` | 1 | in | `PSEL & PENABLE & PREADY` | OC |
+| `PWAKEUPCHK` | `PWAKEUP` | 1 | out | `PRESETn` | C (+`Wakeup_Signal`) |
+| `PAUSERCHK` | `PAUSER` | ceil(`USER_REQ_WIDTH`/8) | out | `PSEL` | OC |
+| `PWUSERCHK` | `PWUSER` | ceil(`USER_DATA_WIDTH`/8) | out | `PSEL & PWRITE` | OC |
+| `PRUSERCHK` | `PRUSER` | ceil(`USER_DATA_WIDTH`/8) | in | `PSEL & PENABLE & PREADY & !PWRITE` | OC |
+| `PBUSERCHK` | `PBUSER` | ceil(`USER_RESP_WIDTH`/8) | in | `PSEL & PENABLE & PREADY` | OC |
+
+*Spec note:* [IHI Table B-2] lists `PADDRCHK` width as `ADDR_WIDTH/8`; [IHI Table 5-1] and [IHI §5.3] give ceil(`ADDR_WIDTH`/8) with a partial most-significant check bit. This contract uses **ceil()**.
+
+### 2.3 Configuration legality checks (`apb_agent_cfg::validate()`) [proposed]
+
+`validate()` fails with `uvm_fatal` (not a warning) when any of these is true. Each check cites its source.
+
+| ID | Illegal configuration | Source |
+|---|---|---|
+| CFG-01 | `has_pprot` or `has_pstrb` with revision APB2/APB3 | [IHI Table B-1] "N" |
+| CFG-02 | `has_pwakeup`, any user width > 0, or `check_type != NONE` with revision < APB5 | [IHI §3.6.1, §3.7.1, §5.2, Table B-3] |
+| CFG-03 | `ADDR_WIDTH` outside 1..32 | [IHI Table 2-1] "PADDR can be up to 32 bits wide" |
+| CFG-04 | `DATA_WIDTH` not in {8, 16, 32}, unless `DATA_WIDTH`=64 with `allow_nonstandard_width`=1 (extension, never reported as compliant) | [IHI §2.1.2]; ADR-001 Amendment A1 |
+| CFG-05 | Configured user width larger than the physical `apb_if` parameter | physical consistency |
+| CFG-06 | Configured widths differ from the bound BFM's parameters (cross-wiring) | ADR-001 §4 |
+
+Exceeding the *recommended* user-signal widths ([IHI Table 2-1]: `PAUSER` ≤ 128, `PWUSER`/`PRUSER` ≤ `DATA_WIDTH/2`, `PBUSER` ≤ 16) is a `uvm_warning`, because the spec only recommends these limits.
+
+---
+
+## 3. Parameters and widths
+
+| Parameter (HDL) | Legal range | Source |
+|---|---|---|
+| `ADDR_WIDTH` | 1..32 | [IHI Table 2-1] |
+| `DATA_WIDTH` | 8, 16, 32; 64 only with `ALLOW_NONSTANDARD_DW`=1 | [IHI §2.1.2]; read and write buses must have the same width. 64 is a non-standard extension (ADR-001 A1) |
+| `USER_REQ_WIDTH`, `USER_DATA_WIDTH`, `USER_RESP_WIDTH` | ≥ 1 physical (presence via cfg; 0 = absent) | [IHI §2.1, §3.7.2] |
+| `NUM_SEL` | ≥ 1, default 1 [ASSUMPTION] | [IHI Table 2-1]: one `PSELx` per Completer |
+
+`NUM_SEL`: [IHI Table 2-1] has the Requester generate one `PSELx` per Completer. The proposal keeps a `PSEL[NUM_SEL-1:0]` vector (with one `PSELxCHK` per bit) and a transaction `sel` index. Milestone 1 tests only `NUM_SEL = 1` (see **Q2**).
+
+---
+
+## 4. Transfer rules for the driver BFM and the monitor checks
+
+These IDs are the traceability keys for assertions, coverage and tests.
+
+| ID | Rule | Source |
+|---|---|---|
+| APB-R01 | All signals are timed against the rising edge of `PCLK` | [IHI Table 2-1, §3.1, §3.3] |
+| APB-R02 | IDLE (`PSELx`=0) is the default state | [IHI §4.1] |
+| APB-R03 | SETUP: `PSELx`=1, `PENABLE`=0 for exactly one cycle, then always ACCESS | [IHI §4.1] |
+| APB-R04 | ACCESS: `PENABLE`=1. `PADDR`, `PPROT`, `PWRITE`, `PWDATA` (writes), `PSTRB`, `PAUSER`, `PWUSER` must not change from SETUP through every ACCESS cycle. `PSELx` and `PENABLE` remain asserted while `PREADY`=0 | [IHI §4.1, §3.1.2, §3.3.2] |
+| APB-R05 | ACCESS exits when `PREADY`=1: to IDLE, or directly to SETUP for a following transfer. `PENABLE` deasserts at the end of the transfer | [IHI §4.1, §3.1.1] |
+| APB-R06 | `PREADY` may take any value while `PENABLE`=0; no check applies there | [IHI §3.1.2] |
+| APB-R07 | Every transfer takes ≥ 2 cycles; wait states range from zero upwards | [IHI §1.1, §3.3.2] |
+| APB-R08 | `PSTRB[n]` qualifies `PWDATA[8n+7:8n]`; `PWDATA` must be valid on active lanes when `PSEL` is asserted | [IHI §3.2, A.1] |
+| APB-R09 | On reads the Requester drives all `PSTRB` bits LOW | [IHI §3.2, Table 2-1] |
+| APB-R10 | `PRDATA` and `PRUSER` are valid only when `PSEL & PENABLE & PREADY & !PWRITE` | [IHI §3.3.1, §3.7.2, A.1] |
+| APB-R11 | `PSLVERR` and `PBUSER` are valid only in the last cycle (`PSEL & PENABLE & PREADY`). `PSLVERR` LOW otherwise is recommended, not required | [IHI §3.4, §3.7.2, A.1] |
+| APB-R12 | A read error may return invalid data; the monitor still reports the data, with the error flag | [IHI §3.4] |
+| APB-R13 | `PSEL` and `PWAKEUP` must always be valid (never X/Z) | [IHI A.1] |
+| APB-R14 | Signals not required to be valid are recommended driven to zero | [IHI A.1] |
+| APB-R15 | `PADDR` is a byte address; unaligned is permitted but the result is UNPREDICTABLE | [IHI §2.1.1] |
+| APB-R16 | `PPROT[0]` normal/privileged, `[1]` secure/non-secure, `[2]` data/instruction | [IHI Table 3-2] |
+| APB-R17 | `PWAKEUP`: synchronous and glitch-free; may assert before, during or after `PSELx`; if `PWAKEUP` and `PSELx` are both HIGH in a cycle it stays asserted until `PREADY`. Recommended ≥ 1 cycle before `PSELx` and deasserted when no more transfers are required. Asserting then deasserting without a transfer is permitted but not recommended | [IHI §3.6.2] |
+| APB-R18 | A Completer may wait for `PWAKEUP` before `PREADY`; a never-asserted `PWAKEUP` can deadlock | [IHI §3.6.2] |
+| APB-R19 | `PAUSER` is valid with `PSEL` and identical in SETUP and every ACCESS cycle; `PWUSER` likewise for writes | [IHI Table 3-5] |
+| APB-R20 | Odd parity; each check bit covers ≤ 8 payload bits (`chk[n]` ↔ `payload[8n+7:8n]`); single-bit control checks are the inversion of the signal; driven correctly in every cycle the check-enable term is true, over all payload bits including inactive lanes; covered signals that are absent count as LOW | [IHI §5.3, Table 5-1] |
+| APB-R21 | Completer behaviour on a parity error is not prescribed; the monitor reports it and the UVC does not judge the Completer's reaction | [IHI §5.4] |
+| APB-R22 | Not pipelined: one transfer at a time per interface | [IHI §1.1, §2.1.2] |
+
+### UVC policies built on top of the rules [ASSUMPTION]
+
+| ID | Policy | Default |
+|---|---|---|
+| POL-01 | Unaligned `PADDR` (APB-R15) is a driver error unless `cfg.allow_unaligned` | error |
+| POL-02 | Wait-state watchdog: transfer ends with status `TIMEOUT` and `uvm_error` after `cfg.max_wait_cycles` ACCESS cycles; 0 disables | 1024 |
+| POL-03 | Idle-cycle value policy for Requester outputs (APB-R14) | drive zero |
+| POL-04 | `PWAKEUP` lead before SETUP / hold after last transfer (APB-R17) | 1 / 1 cycles |
+| POL-05 | Recommended-only behaviours (`PSLVERR` LOW outside completion, APB-R11) are reported at `UVM_INFO`/warning, never as errors | warning |
+
+---
+
+## 5. Reset semantics
+
+IHI 0024D only says that `PRESETn` is active-LOW and normally connected to the system bus reset [IHI Table 2-1], that IDLE is the default state [IHI §4.1], that `PSEL`/`PWAKEUP` must always be valid [IHI A.1], and that `PSELxCHK`/`PWAKEUPCHK` are checked whenever `PRESETn` is HIGH [IHI Table 5-1]. **Everything below is [ASSUMPTION] for review.**
+
+| ID | Behaviour |
+|---|---|
+| RST-1 | While `PRESETn`=0 the driver BFM drives `PSEL`=0, `PENABLE`=0, `PWAKEUP`=0 and all other Requester outputs to 0 |
+| RST-2 | Reset assertion is recognised immediately (asynchronously); deassertion is recognised at the first `PCLK` rising edge that samples `PRESETn`=1 |
+| RST-3 | A transfer in flight when reset asserts is abandoned. The sequence item completes with status `RESET_ABORTED` and is not retried |
+| RST-4 | The monitor discards a partially observed transfer: no transaction is published. Reset entry/exit is reported through a separate observe-API event |
+| RST-5 | First SETUP after reset is no earlier than the first rising edge after deassertion (`cfg.post_reset_idle_cycles`, default 1) |
+| RST-6 | Protocol and X/Z checks are inactive while `PRESETn`=0. `PSEL`/`PWAKEUP` X/Z checks (APB-R13) start at the first reset deassertion, which allows time-0 X before the first reset |
+| RST-7 | X/Z on `PRESETn` after the first reset deassertion is an error |
+
+---
+
+## 6. Transaction representation (HVL, not width-parameterized)
+
+`apb_transaction` extends `uvm_sequence_item`. One class serves every instance width.
+
+| Field | Type [ASSUMPTION] | Notes |
+|---|---|---|
+| `dir` | `apb_dir_e` {`APB_READ`, `APB_WRITE`} | |
+| `addr` | `logic [`APB_MAX_ADDR_WIDTH`-1:0]` | max 32 per [IHI Table 2-1] |
+| `wdata`, `rdata` | `logic [`APB_MAX_DATA_WIDTH`-1:0]` | default 32 per [IHI §2.1.2]; set `+define+APB_MAX_DATA_WIDTH=64` for the extension |
+| `strb` | `logic [`APB_MAX_DATA_WIDTH`/8-1:0]` | |
+| `prot` | `logic [2:0]` | |
+| `auser`, `wuser`, `ruser`, `buser` | `logic [`APB_MAX_*_USER_WIDTH`-1:0]` | **M2, not in the class yet**; planned maxima 128 / 32 / 32 / 16, overridable by `+define+` |
+| `sel` | `int unsigned` | index into `PSEL[NUM_SEL-1:0]` |
+| `slverr` | `logic` | observed `PSLVERR`, 4-state (was `bit` in the draft; changed so X/Z is kept) |
+| `status` | `apb_bfm_pkg::apb_bfm_status_e` | one encoding shared with the BFM: `OK`, `SLVERR`, `RESET_ABORTED`, `TIMEOUT`, `NOT_ENABLED`, `BAD_REQUEST`, `FAULT_INJECTED` |
+| `idle_cycles` | `rand int unsigned` | IDLE cycles before SETUP; 0 means back-to-back (APB-R05) |
+| `wait_states`, `start_cycle`, `end_cycle` | observation metadata | filled by the monitor |
+| `bus_addr_width`, `bus_data_width`, `bus_num_sel`, `bus_has_pstrb`, `bus_has_pprot` | bus context (not randomized) | set from `apb_agent_cfg` by `apb_base_seq::new_item()` before randomization, and by the adapters on every item; constraints keep values legal for that bus |
+| `instance_name` | `string` | name of the adapter that drove or observed the item |
+
+### Lossless and 4-state rules
+
+- **No silent narrowing.** On HVL → BFM conversion, the drive adapter checks that every bit at or above the bound bus width (`addr`, `wdata`, `strb`, user fields) is 0. Any other value is a `uvm_error` and the item is not driven.
+- **No sign extension.** All payload fields are unsigned `logic` vectors. On BFM → HVL conversion the observe adapter zero-extends and records `bus_data_width`.
+- **4-state preserved.** The monitor captures X/Z verbatim; nothing is converted to `bit`.
+- **Driver input check.** X/Z in `addr`, `dir`, `prot`, `strb` or `sel` is a `uvm_error` before driving. X/Z in `wdata` is allowed only when `cfg.allow_x_wdata` is set (for fault injection).
+- The macro maxima are a single compile-time choice per simulation image, documented in the README once code exists. A dynamic/chunked representation is not used because APB widths are bounded by the spec.
+
+---
+
+## 7. Monitor transport (RISK-002) [ASSUMPTION; implemented in `apb_monitor_bfm_if`]
+
+- The monitor BFM samples through a clocking block (`@(posedge PCLK)`, input skew `#1step`) and reconstructs transfers in an always-running HDL process, independent of HVL timing.
+- A transfer is **published once**, at the `PCLK` edge where `PSEL & PENABLE & PREADY` is sampled HIGH (APB-R05). The completed transfer goes into a bounded HDL queue of plain packed values; overflow is an error.
+- The HVL observe adapter calls a blocking BFM task `get_transfer(output ...)` from the UVM monitor's `run_phase`, then builds the `apb_transaction`. No UVM class objects exist on the HDL side (ADR-002 §6).
+- The monitor works whether or not the driver BFM is enabled, because it only reads pins.
+- **Wake-up rule (as implemented):** `publish()` pushes the transfer and triggers the named event `obs_ev`; `get_transfer()` runs `while (queue empty) @(obs_ev);`. Because the queue is checked before waiting, a publish earlier in the same time step is never missed, and the caller is delivered the transfer in the completion time step.
+- Not compiled or simulated in its current form (toolchain approval pending).
+
+## 8. Driver BFM behaviour [ASSUMPTION; implemented in `apb_driver_bfm_if`]
+
+- Drives on the `PCLK` rising edge through a clocking block. It enters ACCESS after one SETUP cycle and holds every APB-R04 signal stable until `PREADY` is sampled HIGH (or the APB2 default of `PREADY`=1 applies).
+- Back-to-back: if the next item has `idle_cycles_before == 0`, ACCESS goes straight to SETUP (APB-R05).
+- **Drive release:** when the driver BFM is not enabled (passive instance) its outputs are `'z`, and `apb_if` uses resolved nets. A passive instance therefore cannot contend with another Requester on the same bus (ADR-002 acceptance "no drive activity while configured passive"). Release is unverified until a 4-state simulator run (RISK-009).
+- **Reset during a transfer:** `do_transfer()` runs the transfer and a reset watcher under `fork…join_any` (isolated by an outer `fork…join` so `disable fork` cannot reach the caller's processes). The transfer is abandoned at the reset edge with status `RESET_ABORTED` (RST-2/RST-3), and an `always @(PRESETn)` block idles the pins as soon as reset asserts (RST-1). Emulation suitability of `fork` inside a BFM is unassessed (ADR-001 risk list).
+- **Completion handoff:** `do_transfer()` returns at the completion edge after scheduling the IDLE values with NBAs; an immediate next call with `idle_cycles == 0` overrides them with its SETUP values in the same time step, giving the back-to-back transfer (SETUP at completion cycle + 1; checked by the smoke test, not yet run).
+
+---
+
+## 9. Package and compile dependencies
+
+```text
+HDL compilation units (no UVM):
+  hdl/apb_bfm_pkg.sv   types only: revision, features, status, fault and monitor-error enums
+    └─> hdl/apb_if.sv   hdl/apb_driver_bfm_if.sv   hdl/apb_monitor_bfm_if.sv
+        ^ ordinary signal ports wired in examples/apb_hdl_top.sv (ADR-002 §7)
+
+HVL packages:
+  uvm_pkg, apb_bfm_pkg
+    └─> apb_api_pkg       (hvl/types, hvl/api: apb_transaction, drive/observe proxy bases)
+          ├─> apb_uvc_pkg      (hvl/config, hvl/agent, hvl/sequences, hvl/coverage)
+          └─> apb_adapter_pkg  (hvl/adapter: width-specialized proxies; references the
+                                BFM interface types via virtual interface handles)
+
+Integration (examples/):
+  apb_hdl_top  : instantiates apb_if + both BFMs per instance + apb_example_slave
+  apb_hvl_top  : imports uvm_pkg, apb_api_pkg, apb_uvc_pkg, apb_adapter_pkg;
+                 constructs adapters, fills one apb_agent_cfg per instance, uvm_config_db::set once, run_test()
+```
+
+Compile order: `apb_bfm_pkg` → HDL interfaces → `uvm_pkg` → `apb_api_pkg` → `apb_uvc_pkg` → `apb_adapter_pkg` → examples/tests. `apb_uvc_pkg` must not import `apb_adapter_pkg`; nothing in the core imports example or test code.
+
+## 10. File manifest and milestone split
+
+| Step (`CLAUDE_GENERATION_PROMPT.md`) | Files | Features implemented |
+|---|---|---|
+| 2 HDL (**written; compile NOT RUN**) | `hdl/apb_bfm_pkg.sv`, `hdl/apb_if.sv`, `hdl/apb_driver_bfm_if.sv`, `hdl/apb_monitor_bfm_if.sv`, `examples/apb_example_slave.sv`, `examples/apb_hdl_top.sv`, `tests/apb_hdl_smoke.sv`, `filelists/apb_hdl.f`, `filelists/apb_hdl_smoke.f`, `scripts/{slang_elab.py,make_eda_bundle.py}`, `README.md` | Full APB5 pin superset declared; APB2/3/4 behaviour implemented; APB5 pins driven/treated per defaults |
+| 3 HVL API (**written; compile NOT RUN**) | `hvl/types/apb_defines.svh`, `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
+| 4 HVL concrete (**written; compile NOT RUN**) | `hvl/adapter/apb_drive_proxy.sv`, `hvl/adapter/apb_monitor_proxy.sv`, `hvl/pkg/apb_adapter_pkg.sv` | |
+| 5 UVM (**written; compile NOT RUN**) | `hvl/config/apb_agent_cfg.sv`, `hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv`, `hvl/sequences/{apb_base_seq,apb_random_seq}.sv`, `hvl/coverage/apb_coverage.sv`, `hvl/pkg/apb_uvc_pkg.sv`, `filelists/{apb_hvl,apb_poc}.f`, `examples/apb_hvl_top.sv` | |
+| 6 Tests (**written; NOT RUN**) | `tests/apb_poc_test_pkg.sv` with `apb_poc_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv`. No `run_poc.sh`: simulator commands depend on the approved tool | M1 tests: APB4; passive, reset and APB2/APB3 tests still missing (WORK_STATUS *Known gaps*) |
+| later M2 | same files | APB5 `PWAKEUP` + user signals |
+| later M3 | same files + `assertions/` | APB5 parity generation/checking + parity fault injection |
+
+Additions to the DIRECTORY_ARCHITECTURE plan: `hdl/apb_bfm_pkg.sv` replaces the earlier `hvl/types/apb_types.sv` idea. The enums must be shared by the HDL BFMs **and** the HVL adapters, so they live in a types-only package with no UVM, no classes and no timing. `tests/apb_hdl_smoke.sv`, the HDL smoke filelist and the two scripts support the step 2 acceptance run.
+
+## 11. Smallest runnable task and acceptance test
+
+**APB-003a (step 2):** the HDL files in the step 2 row above, with two instances in `apb_hdl_top`.
+
+Acceptance:
+1. slang elaboration of `apb_hdl_top` with both instances: **0 errors** (log stored with SHA).
+2. HDL-only directed smoke without UVM, on a simulator: per instance, one write and one read-back with 0 and 2 wait states. The monitor queue must receive exactly the expected transfers with correct values and no extra publications.
+3. Negative control: a deliberately broken BFM (e.g. `PADDR` changed during a wait state) must be caught by the monitor check.
+
+**Result:** NOT RUN for the current sources. An earlier revision (`5060712`) reported PASS on unapproved slang/Verilator runs, but it contained Verilator-specific workarounds that the owner rejected on 2026-10-29 (RISK-010). Those were reverted, so that evidence is superseded (`evidence/APB-003a/`). Not yet covered by any run: reset during a transfer, passive instance with the driver released, APB2/APB3 configurations, and any 4-state behaviour.
+
+---
+
+## 12. Open questions (need owner decision)
+
+| ID | Question | Recommendation |
+|---|---|---|
+| ~~Q1~~ | **Decided 2026-10-29:** DW=32 + DW=16 demonstration pair; DW=64 kept as opt-in non-standard extension (`ALLOW_NONSTANDARD_DW` HDL parameter + `cfg.allow_nonstandard_width`) | ADR-001 Amendment A1 |
+| Q2 | Multi-`PSELx` (`NUM_SEL` > 1) in scope? | Parameter present, default 1; multi-select tests deferred |
+| Q3 | Target simulator / UVM version. **Owner 2026-10-29:** commercial simulators via EDA Playground are an option to run by the owner; no commercial tool in this container | slang (elaboration) + any open-source simulator available here for evidence; keep sources EDA-Playground-friendly |
+| Q4 | Implement parity in M1 or later? | Pins + config in M1; generation/checking in M3 |
+| Q5 | Approve the reset assumptions RST-1..7 and policies POL-01..05 | — |

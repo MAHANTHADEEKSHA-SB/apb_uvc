@@ -1,0 +1,6 @@
+SMOKE_INFO [C DW=64 non-standard] 10 transfers checked, monitor errors=0
+SMOKE_INFO [A DW=32] 10 transfers checked, monitor errors=0
+SMOKE_INFO [B DW=16] 10 transfers checked, monitor errors=0
+SMOKE_SUMMARY mode=APB_FAULT_NONE A.failures=0 B.failures=0 B.monitor_errors=0
+SMOKE_RESULT: PASS
+- filelists/../tests/apb_hdl_smoke.sv:36: Verilog $finish

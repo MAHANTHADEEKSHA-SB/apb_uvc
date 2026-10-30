@@ -1,0 +1,5 @@
+# Simulator/elaboration outputs from scripts/run_hdl_smoke.sh and local runs
+build/
+obj_dir/
+*.vcd
+*.fst
