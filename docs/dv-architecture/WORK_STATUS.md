@@ -202,8 +202,8 @@ FILES CREATED/CHANGED (last session, 2026-10-29..30): CODING_GUIDELINES.md and D
 PROVEN WORKING (with log/command): approved T1 slang commands on the final tree: HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 project code 0 diagnostics (only the known UVM-library RISK-012 diagnostics). Formal evidence logs: evidence/APB-004/ at 386e64d
 FAILED CHECKS (with log/command): UVM POC elaboration exits 1 on MissingTimeScale inside UVM 1.2 (RISK-012); not pursued (D-010)
 NOT YET RUN: every simulation (owner will run manually); clean UVM elaboration (T5 not approved)
-UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written; owner to decide whether the 25 Claude-authored commits are rewritten (D-014)
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
 OPEN REVIEW FINDING IDS: RISK-001..012
-ARCHITECTURE CONTRACT/ADR AMENDED?: no (contract v0.10, ADR-001 A1); new governing docs CODING_GUIDELINES.md and DECISION_LOG.md
+ARCHITECTURE CONTRACT/ADR AMENDED?: no (contract v0.10, ADR-001 A1); new governing docs CODING_GUIDELINES.md and DECISION_LOG.md; commit identity: new commits as the owner (D-014), earlier commits left as they are (D-015)
 NEXT EXACT COMMAND/SMALLEST TASK: in a new session: `git fetch origin && git switch feature/apb-001-protocol-contract`; set the owner's commit identity (GIT-07); read DECISION_LOG.md, CODING_GUIDELINES.md, then this file from *Resume here*. Ask the owner the two open confirmations (D-010 wording; defaults Q2/Q4/Q5 and the .sv extension rule). Then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with an RST-4 reset event, APB3 integration via an HDL top variant), each to the guidelines and recorded NOT RUN; run nothing beyond the approved T1 commands
 ```
