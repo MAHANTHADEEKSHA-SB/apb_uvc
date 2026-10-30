@@ -18,6 +18,8 @@ typedef enum bit {
   APB_WRITE = 1'b1
 } apb_dir_e;
 
+// Request fields are randomized by sequences. Response fields are filled in place
+// by the driver, or set by the observe adapter on a new object per transfer.
 class apb_transaction extends uvm_sequence_item;
   `uvm_object_utils(apb_transaction)
 
@@ -73,10 +75,12 @@ class apb_transaction extends uvm_sequence_item;
     !bus_has_pprot -> prot == 3'b000;
   }
 
+  // Short IDLE gaps by default; 0 gives back-to-back transfers (APB-R05).
   constraint c_idle {
     soft idle_cycles inside {[0:2]};
   }
 
+  // status starts OK; the response fields are filled later.
   function new(string name = "apb_transaction");
     super.new(name);
     status = APB_ST_OK;
@@ -99,6 +103,7 @@ class apb_transaction extends uvm_sequence_item;
     return mask;
   endfunction
 
+  // Deep copy of every field, including bus context and observation stamps (UVM-03).
   virtual function void do_copy(uvm_object rhs);
     apb_transaction rhs_;
     super.do_copy(rhs);
@@ -142,6 +147,7 @@ class apb_transaction extends uvm_sequence_item;
            slverr === rhs_.slverr;
   endfunction
 
+  // One line for logs; data is wdata for writes and rdata for reads.
   virtual function string convert2string();
     return $sformatf("%s %s addr=%0h data=%0h strb=%0h prot=%0b sel=%0d -> %s slverr=%b waits=%0d",
                      instance_name, dir == APB_WRITE ? "WR" : "RD", addr,

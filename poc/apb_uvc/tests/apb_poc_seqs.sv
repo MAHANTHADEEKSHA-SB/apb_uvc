@@ -23,6 +23,8 @@ class apb_poc_directed_seq extends apb_base_seq;
     super.new(name);
   endfunction
 
+  // Data patterns are masked to the instance width, so the same sequence runs on
+  // DW=16, 32 and 64. The strobed rewrite needs PSTRB and is skipped without it.
   virtual task body();
     apb_transaction        t;
     int unsigned           dw    = p_sequencer.cfg.data_width();
@@ -47,6 +49,7 @@ class apb_poc_directed_seq extends apb_base_seq;
 endclass : apb_poc_directed_seq
 
 
+// Negative-test helper: one write whose data is wider than the bus.
 class apb_unfit_write_seq extends apb_base_seq;
   `uvm_object_utils(apb_unfit_write_seq)
 
@@ -56,6 +59,7 @@ class apb_unfit_write_seq extends apb_base_seq;
     super.new(name);
   endfunction
 
+  // The completed item is kept in result for the test to inspect.
   virtual task body();
     apb_transaction t = new_item("unfit");
     start_item(t);

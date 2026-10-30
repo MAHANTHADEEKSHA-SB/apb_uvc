@@ -51,6 +51,8 @@ module apb_example_slave #(
   assign PSLVERR = access && PREADY && !in_range;
   assign PRDATA  = (access && PREADY && !PWRITE && in_range) ? mem[word] : '0;
 
+  // Wait-state counter and memory. Reset clears both (a fixture choice, not an IHI
+  // 0024D rule). A write updates only PSTRB-enabled lanes, at the completion edge.
   always_ff @(posedge PCLK or negedge PRESETn) begin
     if (!PRESETn) begin
       wait_cnt <= '0;

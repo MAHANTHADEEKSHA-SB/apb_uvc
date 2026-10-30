@@ -20,6 +20,9 @@ class apb_fault_injection_test extends apb_poc_test;
     super.new(name, parent);
   endfunction
 
+  // start_of_simulation runs bottom-up, so A's driver has already configured and
+  // enabled its BFM; the fault applies from the first transfer. A's expected
+  // APB_PROTOCOL errors are demoted and its scoreboard disabled; B keeps every check.
   virtual function void start_of_simulation_phase(uvm_phase phase);
     int unsigned arg;
     super.start_of_simulation_phase(phase);

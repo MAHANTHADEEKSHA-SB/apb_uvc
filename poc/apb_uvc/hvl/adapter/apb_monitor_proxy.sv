@@ -36,6 +36,8 @@ class apb_monitor_proxy #(
   protected vif_t          vif;
   protected apb_features_t features;
 
+  // Bind to exactly one monitor-BFM instance (explicit construction, ADR-001 decision
+  // 5). A null handle or a bus wider than the transaction maxima is fatal (decision 4).
   function new(string name, vif_t vif);
     super.new(name);
     if (vif == null)
@@ -48,6 +50,7 @@ class apb_monitor_proxy #(
     this.features = apb_default_features();
   endfunction
 
+  // Physical parameters of the bound bus; apb_agent_cfg compares them (CFG-03/04/06).
   virtual function int unsigned get_addr_width();
     return ADDR_WIDTH;
   endfunction
@@ -60,12 +63,14 @@ class apb_monitor_proxy #(
     return NUM_SEL;
   endfunction
 
+  // Forward the feature set to the BFM; keep a copy for the bus context of items.
   virtual function bit configure(apb_features_t features);
     if (!vif.configure(features)) return 1'b0;
     this.features = features;
     return 1'b1;
   endfunction
 
+  // Thin forwards to the bound BFM.
   virtual function void set_publish(bit en);
     vif.set_publish(en);
   endfunction
@@ -74,6 +79,9 @@ class apb_monitor_proxy #(
     vif.set_verbose(en);
   endfunction
 
+  // Block until the BFM reports a completed transfer, then build a NEW transaction
+  // (subscribers may keep the handle). Fields are zero-extended to the maxima with
+  // X/Z kept (DATA-02, LANG-04); idle_cycles is not observable and stays 0.
   virtual task receive(output apb_transaction observed);
     bit                    write;
     logic [ADDR_WIDTH-1:0] addr;
@@ -109,6 +117,7 @@ class apb_monitor_proxy #(
     observed.idle_cycles   = 0;  // not observable from the bus
   endtask
 
+  // BFM counters, read by apb_monitor in check_phase and report_phase.
   virtual function int unsigned get_error_count(apb_mon_error_e code);
     return vif.get_error_count(code);
   endfunction

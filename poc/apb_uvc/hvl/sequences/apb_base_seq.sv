@@ -17,6 +17,8 @@ class apb_base_seq extends uvm_sequence #(apb_transaction);
     super.new(name);
   endfunction
 
+  // New item carrying the bus context of the agent this sequence runs on (DATA-03).
+  // Requires the sequence to run on an apb_sequencer (p_sequencer).
   protected function apb_transaction new_item(string name = "item");
     apb_agent_cfg   cfg = p_sequencer.cfg;
     apb_transaction t   = apb_transaction::type_id::create(name);
@@ -52,6 +54,7 @@ class apb_base_seq extends uvm_sequence #(apb_transaction);
     finish_item(t);
   endtask
 
+  // Read; on return the item holds rdata, slverr, wait_states and status.
   task do_read(input  logic [APB_MAX_AW-1:0] addr,
                output apb_transaction        t,
                input  int unsigned           idle = 1);

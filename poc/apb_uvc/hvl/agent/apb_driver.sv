@@ -23,6 +23,8 @@ class apb_driver extends uvm_driver #(apb_transaction);
     super.new(name, parent);
   endfunction
 
+  // Take the drive capability from the cfg the agent passed in; an active agent
+  // without one is a configuration error.
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     if (cfg == null)
@@ -32,6 +34,8 @@ class apb_driver extends uvm_driver #(apb_transaction);
       `uvm_fatal("APB_DRV", {cfg.get_name(), ": active agent without a drive proxy"})
   endfunction
 
+  // Push the policies and the feature set to the adapter and BFM, then enable
+  // driving: the bus leaves 'z at time 0, before the first reset release.
   virtual function void start_of_simulation_phase(uvm_phase phase);
     super.start_of_simulation_phase(phase);
     drive.max_wait_cycles = cfg.max_wait_cycles;
@@ -42,6 +46,8 @@ class apb_driver extends uvm_driver #(apb_transaction);
     drive.set_enable(1'b1);
   endfunction
 
+  // Wait for reset release (RST-5), then serve items until one is abandoned by reset
+  // (RST-3), then wait for the next release. Each item is completed in place.
   virtual task run_phase(uvm_phase phase);
     forever begin
       drive.wait_for_reset_release(cfg.post_reset_idle_cycles);
@@ -55,6 +61,8 @@ class apb_driver extends uvm_driver #(apb_transaction);
     end
   endtask
 
+  // Report each outcome at a severity that matches its status (UVM-09): timeouts are
+  // errors, a disabled BFM is fatal, rejections were already reported by the adapter.
   protected function void report_result(apb_transaction t);
     case (t.status)
       APB_ST_OK, APB_ST_SLVERR:

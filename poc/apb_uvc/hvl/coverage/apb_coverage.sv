@@ -12,6 +12,7 @@
 class apb_coverage extends uvm_subscriber #(apb_transaction);
   `uvm_component_utils(apb_coverage)
 
+  // Write strobe pattern: every lane of the bus, some lanes (IHI 0024D 3.2) or none.
   typedef enum { STRB_NONE, STRB_FULL, STRB_PARTIAL } strb_kind_e;
 
   apb_agent_cfg cfg;  // set by apb_agent
@@ -19,6 +20,8 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
   protected longint unsigned prev_end;
   protected bit              has_prev;
 
+  // Sampled once per observed transfer. b2b: SETUP right after the previous
+  // completion (APB-R05). cp_prot is ignored when the instance has no PPROT.
   covergroup cg with function sample(apb_dir_e dir, int unsigned waits, bit slverr,
                                      strb_kind_e strb_kind, bit b2b, logic [2:0] prot);
     option.per_instance = 1;
@@ -47,11 +50,13 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
     cg = new();
   endfunction
 
+  // Name the covergroup instance after this component: coverage is per agent.
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     cg.set_inst_name(get_full_name());
   endfunction
 
+  // Sample one observed transfer; back-to-back comes from the monitor's cycle stamps.
   virtual function void write(apb_transaction t);
     bit b2b = has_prev && (t.start_cycle == prev_end + 1);
     cg.sample(t.dir, t.wait_states, t.slverr === 1'b1, classify_strb(t), b2b, t.prot);
@@ -59,12 +64,14 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
     has_prev = 1'b1;
   endfunction
 
+  // Classify against the full lane mask of the bus the item was observed on.
   protected function strb_kind_e classify_strb(apb_transaction t);
     if (t.strb == 0)              return STRB_NONE;
     if (t.strb == t.full_strb())  return STRB_FULL;
     return STRB_PARTIAL;
   endfunction
 
+  // Per-instance coverage summary.
   virtual function void report_phase(uvm_phase phase);
     super.report_phase(phase);
     `uvm_info("APB_COV", $sformatf("%s: coverage %0.1f%%", get_full_name(), cg.get_inst_coverage()),

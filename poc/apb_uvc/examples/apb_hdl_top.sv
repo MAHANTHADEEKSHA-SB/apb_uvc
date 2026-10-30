@@ -28,6 +28,7 @@ module apb_hdl_top;
     repeat (5) @(negedge pclk_a);
     presetn_a = 1'b1;
   end
+  // Same for instance B, on its own clock.
   initial begin
     repeat (5) @(negedge pclk_b);
     presetn_b = 1'b1;
@@ -41,6 +42,7 @@ module apb_hdl_top;
     @(negedge pclk_a) presetn_a = 1'b1;
   endtask
 
+  // Same for instance B.
   task automatic pulse_reset_b(input int unsigned cycles);
     presetn_b = 1'b0;
     repeat (cycles) @(posedge pclk_b);
@@ -225,6 +227,7 @@ module apb_hdl_top;
   // ---------------------------------------------------------------------------
   logic pclk_c = 1'b0, presetn_c = 1'b0;
   always #4 pclk_c = ~pclk_c;  // 8 ns period
+  // Initial reset of instance C, released on a falling edge as for A and B.
   initial begin
     repeat (5) @(negedge pclk_c);
     presetn_c = 1'b1;

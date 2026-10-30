@@ -21,6 +21,8 @@ module apb_hvl_top;
   import apb_adapter_pkg::*;
   import apb_poc_test_pkg::*;
 
+  // Runs once at time 0, before any UVM phase: the adapters and cfg objects must
+  // exist before run_test() builds the agents, which fetch their cfg in build_phase.
   initial begin : bind_and_run
     apb_drive_proxy   #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) drive_a;
     apb_monitor_proxy #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) observe_a;

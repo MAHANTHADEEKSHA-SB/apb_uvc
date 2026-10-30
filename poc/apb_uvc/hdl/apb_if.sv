@@ -69,6 +69,9 @@ interface apb_if #(
   wire logic [USER_DATA_CHK_WIDTH-1:0] PRUSERCHK;
   wire logic [USER_RESP_CHK_WIDTH-1:0] PBUSERCHK;
 
+  // Modports give a DUT or a hand-written testbench a direction-checked view of the
+  // bus. The UVC's own BFMs do not use them: they connect through ordinary signal
+  // ports wired in the HDL top (ADR-002 decision 7).
   modport requester (
     input  PCLK, PRESETn,
     output PADDR, PPROT, PSEL, PENABLE, PWRITE, PWDATA, PSTRB, PWAKEUP, PAUSER, PWUSER,

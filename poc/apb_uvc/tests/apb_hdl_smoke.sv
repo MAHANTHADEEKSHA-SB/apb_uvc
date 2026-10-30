@@ -27,6 +27,8 @@ module apb_hdl_smoke;
 
   apb_hdl_top u_top ();
 
+  // One runner per instance. It reaches its instance only through typed virtual
+  // BFM handles, as the HVL adapters do (RISK-001).
   class smoke_runner #(int AW = 32, int DW = 32);
     typedef virtual apb_driver_bfm_if  #(.ADDR_WIDTH(AW), .DATA_WIDTH(DW)) drv_vif_t;
     typedef virtual apb_monitor_bfm_if #(.ADDR_WIDTH(AW), .DATA_WIDTH(DW)) mon_vif_t;
@@ -57,6 +59,7 @@ module apb_hdl_smoke;
       this.fault = fault;
     endfunction
 
+    // Record one failed expectation; the run continues so every problem is reported.
     function void check(bit ok, string msg);
       if (!ok) begin
         failures++;
@@ -64,6 +67,8 @@ module apb_hdl_smoke;
       end
     endfunction
 
+    // One transfer through the driver BFM. In positive mode, check status, wait states
+    // and read data, and record what the monitor must observe.
     task automatic xfer(bit write, logic [AW-1:0] addr, logic [DW-1:0] wdata,
                         logic [SW-1:0] strb, int unsigned idle,
                         logic [DW-1:0] exp_rdata, apb_bfm_status_e exp_st,
@@ -90,6 +95,8 @@ module apb_hdl_smoke;
       exp_waits.push_back(exp_ws);
     endtask
 
+    // Configure both BFMs (APB4 defaults), enable the driver, run the directed
+    // sequence, then check the monitor (positive mode) or the injected fault.
     task automatic run();
       apb_features_t f;
       logic [SW-1:0] all;
@@ -124,6 +131,7 @@ module apb_hdl_smoke;
       else                         check_monitor();
     endtask
 
+    // Negative mode: pass only if the violation matching the injected fault was counted.
     task automatic check_fault_detected();
       apb_mon_error_e want;
       case (fault)
@@ -138,6 +146,8 @@ module apb_hdl_smoke;
                mon.get_total_errors());
     endtask
 
+    // Positive mode: each expected transfer observed once, in order, with matching
+    // fields and consistent cycle stamps; nothing extra published afterwards.
     task automatic check_monitor();
       bit              write;
       logic [AW-1:0]   addr;
@@ -193,6 +203,7 @@ module apb_hdl_smoke;
   smoke_runner #(32, 64) run_c;
 `endif
 
+  // Main: one runner per instance, run concurrently, then print the result line.
   initial begin
     apb_fault_e  fault_a;
     int unsigned fault_arg;
@@ -225,6 +236,7 @@ module apb_hdl_smoke;
     $finish;
   end
 
+  // Watchdog: report a hang as a failure.
   initial begin
     #200us;
     $display("SMOKE_RESULT: FAIL (watchdog timeout)");

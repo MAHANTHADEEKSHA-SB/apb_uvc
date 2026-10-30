@@ -35,6 +35,7 @@ class apb_agent_cfg extends uvm_object;
   bit                     enable_coverage        = 1'b1;
   bit                     monitor_verbose        = 1'b1;   // BFM prints each violation
 
+  // Default feature set: APB4 with PSTRB and PPROT (DECISION_LOG D-002).
   function new(string name = "apb_agent_cfg");
     super.new(name);
     features = apb_default_features();
@@ -98,6 +99,8 @@ class apb_agent_cfg extends uvm_object;
     return "";
   endfunction
 
+  // Fatal on any legality_error() (UVM-08). Warnings only for a passive agent that
+  // still has a drive proxy and for the non-standard DW=64 extension.
   function void validate();
     string problem = legality_error();
     if (problem != "")
@@ -110,6 +113,7 @@ class apb_agent_cfg extends uvm_object;
                    ": DATA_WIDTH=64 is a NON-STANDARD extension, not IHI 0024D compliant"})
   endfunction
 
+  // One-line summary, printed by apb_agent at build time.
   virtual function string convert2string();
     return $sformatf("%s: %s %s AW=%0d DW=%0d NUM_SEL=%0d pstrb=%0b pprot=%0b max_wait=%0d",
                      get_name(), is_active.name(), features.revision.name(), addr_width(),

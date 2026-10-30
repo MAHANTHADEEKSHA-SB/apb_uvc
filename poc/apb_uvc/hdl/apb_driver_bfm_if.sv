@@ -97,6 +97,9 @@ interface apb_driver_bfm_if
   assign PAUSERCHK  = drive_en ? '0   : 'z;
   assign PWUSERCHK  = drive_en ? '0   : 'z;
 
+  // Completer outputs are sampled 1step before each PCLK rising edge: the value the
+  // Completer presented during that cycle (HDL-05). Requester outputs are not driven
+  // through this block; the tasks below update them with NBAs.
   clocking cb @(posedge PCLK);
     default input #1step;
     input PRESETn, PREADY, PRDATA, PSLVERR, PRUSER, PBUSER;
@@ -142,6 +145,8 @@ interface apb_driver_bfm_if
     drive_en = en;
   endfunction
 
+  // Negative tests only: select a deliberate protocol fault (apb_fault_e). It stays
+  // active for every following transfer until set back to APB_FAULT_NONE.
   function automatic void set_fault(apb_fault_e f);
     fault = f;
   endfunction
@@ -179,6 +184,7 @@ interface apb_driver_bfm_if
     wait_states = 0;
     status      = APB_ST_OK;
 
+    // A request that cannot start leaves the bus untouched; status says why.
     if (!drive_en) begin
       status = APB_ST_NOT_ENABLED;
       return;
@@ -192,11 +198,14 @@ interface apb_driver_bfm_if
       return;
     end
 
+    // The BFM owns the bus until the end of the task: configure() is refused and
+    // set_enable(0) is reported as an error while busy.
     busy = 1'b1;
     st   = APB_ST_OK;
     fork begin : guard  // isolates "disable fork" from the caller's processes
       fork
         begin : transfer
+          // IDLE gap requested by the item; 0 gives a back-to-back transfer (APB-R05).
           repeat (idle_cycles) @(cb);
           drive_setup(write, addr, wdata, strb, prot, sel);
           if (fault != APB_FAULT_SKIP_SETUP) begin
@@ -205,12 +214,15 @@ interface apb_driver_bfm_if
           end
           forever begin
             @(cb);
+            // Completion point (APB-R05). APB2 has no PREADY, so every ACCESS cycle completes
+            // (IHI 0024D Table B-1 default 1). X/Z on PREADY counts as not ready.
             if (!apb_has_pready(features.revision) || cb.PREADY === 1'b1) begin
               if (!write) rdata = cb.PRDATA;  // 4-state, verbatim
               slverr = apb_has_pslverr(features.revision) ? cb.PSLVERR : 1'b0;
               if (slverr === 1'b1) st = APB_ST_SLVERR;
               break;
             end
+            // Fault modes act in the first wait state only (negative tests).
             if (wait_states == 0 && fault == APB_FAULT_PADDR_UNSTABLE)
               paddr_q <= ~addr;
             if (wait_states == 0 && fault == APB_FAULT_DROP_PSEL_IN_WAIT) begin
@@ -232,6 +244,7 @@ interface apb_driver_bfm_if
       disable fork;
     end join
 
+    // Back to IDLE values (APB-R05); see the task header for back-to-back transfers.
     drive_idle();
     status = st;
     busy   = 1'b0;
@@ -241,6 +254,8 @@ interface apb_driver_bfm_if
   // Internal drive helpers
   // ---------------------------------------------------------------------------
 
+  // Schedule the SETUP values (APB-R03) with NBAs. Absent PSTRB/PPROT are driven 0
+  // (IHI 0024D Table B-1). APB_FAULT_SKIP_SETUP raises PENABLE together with PSEL.
   task automatic drive_setup(
     input bit                    write,
     input logic [ADDR_WIDTH-1:0] addr,

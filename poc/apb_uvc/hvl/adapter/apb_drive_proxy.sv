@@ -38,6 +38,8 @@ class apb_drive_proxy #(
   protected vif_t          vif;
   protected apb_features_t features;
 
+  // Bind to exactly one driver-BFM instance (explicit construction, ADR-001 decision
+  // 5). A null handle or a bus wider than the transaction maxima is fatal (decision 4).
   function new(string name, vif_t vif);
     super.new(name);
     if (vif == null)
@@ -50,6 +52,7 @@ class apb_drive_proxy #(
     this.features = apb_default_features();
   endfunction
 
+  // Physical parameters of the bound bus; apb_agent_cfg compares them (CFG-06).
   virtual function int unsigned get_addr_width();
     return ADDR_WIDTH;
   endfunction
@@ -62,12 +65,15 @@ class apb_drive_proxy #(
     return NUM_SEL;
   endfunction
 
+  // Forward the feature set to the BFM and keep a copy for request_ok(); 0 when the
+  // BFM rejects it (for example an APB5 feature before milestone M2/M3).
   virtual function bit configure(apb_features_t features);
     if (!vif.configure(features)) return 1'b0;
     this.features = features;
     return 1'b1;
   endfunction
 
+  // Thin forwards to the bound BFM.
   virtual function void set_enable(bit en);
     vif.set_enable(en);
   endfunction
@@ -80,6 +86,9 @@ class apb_drive_proxy #(
     vif.wait_for_reset_release(idle_cycles);
   endtask
 
+  // Run one transfer for req: stamp the bus context, reject anything that cannot be
+  // driven losslessly or legally (APB_ST_BAD_REQUEST, nothing on the bus), convert
+  // to the bus width, and write the response back into req.
   virtual task send(apb_transaction req);
     logic [DATA_WIDTH-1:0] rdata;
     logic                  slverr;

@@ -30,6 +30,9 @@ class apb_poc_scoreboard extends uvm_subscriber #(apb_transaction);
     super.new(name, parent);
   endfunction
 
+  // Check one observed transfer against the fixture model: PSLVERR and wait states
+  // follow from the address, reads must match the model, writes update the model
+  // on PSTRB lanes. Back-to-back transfers are counted even when disabled.
   virtual function void write(apb_transaction t);
     int unsigned nbytes    = t.bus_data_width / 8;
     int unsigned a         = t.addr;
@@ -61,11 +64,13 @@ class apb_poc_scoreboard extends uvm_subscriber #(apb_transaction);
     end
   endfunction
 
+  // Count and report one mismatch (APB_SB).
   protected function void mismatch(apb_transaction t, string what);
     num_mismatches++;
     `uvm_error("APB_SB", {get_full_name(), ": ", what, " | ", t.convert2string()})
   endfunction
 
+  // Summary line per instance.
   virtual function void report_phase(uvm_phase phase);
     super.report_phase(phase);
     `uvm_info("APB_SB", $sformatf("%s: %0d checked, %0d mismatches, %0d back-to-back",

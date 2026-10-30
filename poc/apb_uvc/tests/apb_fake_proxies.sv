@@ -17,6 +17,7 @@ class apb_fake_drive_proxy extends apb_drive_proxy_base;
     super.new(name);
   endfunction
 
+  // The width getters return the knobs above; every other method is an inert stub.
   virtual function int unsigned get_addr_width();
     return aw;
   endfunction
@@ -48,6 +49,7 @@ class apb_fake_drive_proxy extends apb_drive_proxy_base;
 endclass : apb_fake_drive_proxy
 
 
+// Observe-side double with the same width knobs; it never receives anything.
 class apb_fake_monitor_proxy extends apb_monitor_proxy_base;
   int unsigned aw = 32;
   int unsigned dw = 32;
@@ -57,6 +59,7 @@ class apb_fake_monitor_proxy extends apb_monitor_proxy_base;
     super.new(name);
   endfunction
 
+  // The width getters return the knobs above; every other method is an inert stub.
   virtual function int unsigned get_addr_width();
     return aw;
   endfunction

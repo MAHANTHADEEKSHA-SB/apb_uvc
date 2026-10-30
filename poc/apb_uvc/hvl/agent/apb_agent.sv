@@ -23,6 +23,9 @@ class apb_agent extends uvm_agent;
     super.new(name, parent);
   endfunction
 
+  // Get this instance's cfg once (ADR-002 flow, step 4) and validate it. Build the
+  // monitor (and coverage) always; the sequencer and driver only when active. The
+  // children get the cfg handle directly and never query uvm_config_db (UVM-06).
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     if (!uvm_config_db#(apb_agent_cfg)::get(this, "", "cfg", cfg))
@@ -44,6 +47,7 @@ class apb_agent extends uvm_agent;
     end
   endfunction
 
+  // Re-export the monitor's port as ap, feed coverage, connect driver and sequencer.
   virtual function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
     ap = monitor.ap;

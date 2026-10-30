@@ -21,6 +21,8 @@ class apb_poc_env extends uvm_env;
     super.new(name, parent);
   endfunction
 
+  // agent_a and agent_b always; agent_c and sb_c only when the integration code
+  // registered a cfg for agent_c (DW=64 extension).
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     agent_a = apb_agent::type_id::create("agent_a", this);
@@ -33,6 +35,7 @@ class apb_poc_env extends uvm_env;
     end
   endfunction
 
+  // Each agent's monitor feeds its own scoreboard.
   virtual function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
     agent_a.monitor.ap.connect(sb_a.analysis_export);

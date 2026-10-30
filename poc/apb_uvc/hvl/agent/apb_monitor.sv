@@ -26,6 +26,7 @@ class apb_monitor extends uvm_monitor;
     super.new(name, parent);
   endfunction
 
+  // Create the analysis port and take the observe capability from the cfg.
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     ap = new("ap", this);
@@ -36,6 +37,8 @@ class apb_monitor extends uvm_monitor;
       `uvm_fatal("APB_MON", {cfg.get_name(), ": no observe proxy"})
   endfunction
 
+  // Configure the BFM with the instance's feature set, then enable publishing now
+  // that this consumer exists.
   virtual function void start_of_simulation_phase(uvm_phase phase);
     super.start_of_simulation_phase(phase);
     observe.set_verbose(cfg.monitor_verbose);
@@ -44,6 +47,7 @@ class apb_monitor extends uvm_monitor;
     observe.set_publish(1'b1);
   endfunction
 
+  // One receive() per completed transfer; each is published once on ap (APB-R05).
   virtual task run_phase(uvm_phase phase);
     apb_transaction t;
     forever begin
@@ -54,6 +58,8 @@ class apb_monitor extends uvm_monitor;
     end
   endtask
 
+  // One APB_PROTOCOL error per violation type counted by the BFM. Negative tests
+  // demote this ID on this component and check the counts themselves (UVM-13).
   virtual function void check_phase(uvm_phase phase);
     super.check_phase(phase);
     for (int c = 0; c < APB_MON_NUM_ERRORS; c++) begin
@@ -64,6 +70,7 @@ class apb_monitor extends uvm_monitor;
     end
   endfunction
 
+  // Summary: transfers observed, resets seen, violations counted.
   virtual function void report_phase(uvm_phase phase);
     super.report_phase(phase);
     `uvm_info("APB_MON", $sformatf("%s: %0d transfers observed, %0d resets, %0d protocol errors",

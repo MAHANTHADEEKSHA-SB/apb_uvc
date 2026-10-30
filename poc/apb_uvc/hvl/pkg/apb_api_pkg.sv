@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 
+// The maxima macros must be defined before the package's localparams use them.
 `include "apb_defines.svh"
 
 package apb_api_pkg;

@@ -85,6 +85,7 @@ interface apb_monitor_bfm_if
     longint unsigned       end_cycle;    // cycle of the completion sample
   } apb_obs_t;
 
+  // Bus state as reconstructed from the samples (IHI 0024D Figure 4-1).
   typedef enum int unsigned { MON_IDLE, MON_SETUP, MON_ACCESS } mon_state_e;
 
   apb_features_t   features           = apb_default_features();
@@ -102,6 +103,8 @@ interface apb_monitor_bfm_if
   mon_state_e      state              = MON_IDLE;
   apb_obs_t        cur;
 
+  // Every input is sampled 1step before the PCLK rising edge: the values that were
+  // stable during the cycle, race-free against any driver (HDL-05).
   clocking cb @(posedge PCLK);
     default input #1step;
     input PRESETn, PADDR, PPROT, PSEL, PENABLE, PWRITE, PWDATA, PSTRB,
@@ -127,14 +130,18 @@ interface apb_monitor_bfm_if
     return 1'b1;
   endfunction
 
+  // Queue completed transfers for get_transfer() only once a consumer exists, so an
+  // unused monitor cannot overflow. transfer_count counts either way.
   function automatic void set_publish(bit en);
     publish_en = en;
   endfunction
 
+  // Print each violation when it happens; the counters are kept either way.
   function automatic void set_verbose(bit en);
     verbose = en;
   endfunction
 
+  // Violation counters per apb_mon_error_e; apb_monitor reports them in check_phase.
   function automatic int unsigned get_error_count(apb_mon_error_e code);
     return error_count[code];
   endfunction
@@ -185,18 +192,23 @@ interface apb_monitor_bfm_if
   // Sampling process
   // ---------------------------------------------------------------------------
 
+  // Free-running sampler: one sample_cycle() per PCLK edge, independent of the HVL
+  // side (APB_PROTOCOL_CONTRACT section 7).
   initial forever begin
     @(cb);
     cycle++;
     sample_cycle();
   end
 
+  // Count one violation; when verbose, print it with time, instance and PCLK cycle.
   task automatic flag(apb_mon_error_e code, string msg);
     error_count[code]++;
     if (verbose)
       $display("%0t APB_MON_ERROR %m [%s] cycle=%0d: %s", $realtime, code.name(), cycle, msg);
   endtask
 
+  // Count a completed transfer. When publishing, queue it (bounded: an overflow is
+  // itself a violation) and wake a get_transfer() caller.
   task automatic publish(apb_obs_t o);
     transfer_count++;
     if (!publish_en) return;
@@ -238,6 +250,9 @@ interface apb_monitor_bfm_if
     if (bad != "") flag(APB_MON_ERR_UNSTABLE_IN_ACCESS, {"changed during ACCESS:", bad});
   endtask
 
+  // Process one PCLK sample, in this order: reset (RST-4/6/7), PSEL validity
+  // (APB-R13), IDLE, SETUP capture (APB-R03), ACCESS stability (APB-R04) and the
+  // completion point (APB-R05). Consumes no time.
   task automatic sample_cycle();
     logic pready;
 

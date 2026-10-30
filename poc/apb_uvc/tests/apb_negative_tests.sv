@@ -18,6 +18,8 @@ class apb_cfg_negative_test extends apb_poc_base_test;
     super.new(name, parent);
   endfunction
 
+  // Each case builds a fresh cfg on fake proxies and checks legality_error(); no
+  // fatal is raised, so every case runs and reports.
   virtual task run_phase(uvm_phase phase);
     apb_agent_cfg c;
     phase.raise_objection(this);
@@ -95,6 +97,7 @@ class apb_cfg_negative_test extends apb_poc_base_test;
     phase.drop_objection(this);
   endtask
 
+  // Fresh cfg (default APB4 features) whose fake proxies report the given widths.
   protected function apb_agent_cfg make_cfg(int unsigned drive_aw, int unsigned drive_dw,
                                             int unsigned observe_aw, int unsigned observe_dw);
     apb_agent_cfg          c = apb_agent_cfg::type_id::create("cfg_under_test");
@@ -123,6 +126,7 @@ class apb_cfg_negative_test extends apb_poc_base_test;
 endclass : apb_cfg_negative_test
 
 
+// Builds the POC env and drives one unfit write on instance B (DW=16).
 class apb_width_negative_test extends apb_poc_base_test;
   `uvm_component_utils(apb_width_negative_test)
 
@@ -132,11 +136,14 @@ class apb_width_negative_test extends apb_poc_base_test;
     super.new(name, parent);
   endfunction
 
+  // Full POC env: real adapters on the real bus.
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     env = apb_poc_env::type_id::create("env", this);
   endfunction
 
+  // Pass if the adapter rejected the write (APB_ST_BAD_REQUEST) and the monitor saw
+  // nothing on the bus: no silent truncation (DATA-02, RISK-003).
   virtual task run_phase(uvm_phase phase);
     apb_unfit_write_seq seq = apb_unfit_write_seq::type_id::create("unfit");
     phase.raise_objection(this);
