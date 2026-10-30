@@ -91,6 +91,7 @@ Each rule has an ID. Cite it in reviews (`REVIEW_FEEDBACK.md`) and commit messag
 | FMT-06 | Align declaration groups and port lists in columns when it improves reading. One port per line in port lists and one connection per line in instantiations; connect by name (`.PADDR (bus_a.PADDR)`), never by position. |
 | FMT-07 | Comments explain *why* and cite the rule they implement (`// APB-R04`, `// RST-3`, `// IHI 0024D 3.2`, `// ADR-001 decision 4`). Do not narrate what the code says. No commented-out code. |
 | FMT-08 | No `TODO` without an owner-visible entry: put open work in `WORK_STATUS.md` *Known gaps*, and reference it from the comment if needed. |
+| FMT-09 | **Required comments** (D-013): every module, interface, package and class has a header (§11); every task, function, `always`/`initial` process, clocking block, covergroup and non-obvious constraint has a comment directly above it stating its purpose and the contract rule it implements. A group of trivial members (getters, thin forwards, stubs) may share one comment. Tricky lines (ordering, NBA/sampling, reset handling, fault modes) get a short *why* comment. A comment must stay true when the code changes: update it in the same commit. |
 
 ---
 
@@ -205,6 +206,8 @@ Each rule has an ID. Cite it in reviews (`REVIEW_FEEDBACK.md`) and commit messag
 [ ] FILE  header present, file name = element name, timescale rule, manifest updated
 [ ] NAME  apb_ prefix, suffixes (_e/_t/_q/_seq/...), report IDs APB_*
 [ ] FMT   2-space indent, <= 100 columns, one statement per line, labelled end keywords
+[ ] FMT-09 purpose/contract comment above every new or changed task, function, process,
+          class and covergroup; changed behaviour => updated comment
           (awk 'length > 100' $(git diff --name-only -- '*.sv' '*.svh'))
 [ ] HDL/UVM rules for the layer touched (sections 6-8)
 [ ] VER   self-review done; approved checks re-run or NOT RUN recorded; negative test for new checks
@@ -228,3 +231,4 @@ Text-only audit of the 33 SV files at `45a763f`. After the fixes, the approved T
 | FMT-05 labelled ends | `endgroup` in `apb_coverage.sv` and `endclass` in `apb_hdl_smoke.sv` were unlabelled | labelled in the same push |
 | FMT-06 one connection per line | `examples/apb_hdl_top.sv` had two named connections per line (96 lines) | reformatted in the same push; the ordered list of port/signal pairs was checked to be identical before and after |
 | FILE-03 | Class files included into packages use `.sv`, as fixed by `DIRECTORY_ARCHITECTURE.md` | conforming to the approved plan; renaming them to `.svh` would need an owner decision |
+| FMT-09 required comments | Comment pass on 2026-10-30: 92 comment blocks (149 lines) added in 25 files; verified comment-only by comparing the comment-stripped token streams of HEAD and the working tree (identical in all 25 files; two mutation controls detected) | conforming |

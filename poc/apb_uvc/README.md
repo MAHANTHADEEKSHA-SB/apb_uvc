@@ -52,6 +52,29 @@ Filelists use paths relative to the filelist, so pass them with **`-F`**, not `-
 
 **Reusable core** = `hdl/` + `hvl/` (`apb_hdl.f` + `apb_hvl.f`). `examples/` and `tests/` show integration and are not needed by a consumer.
 
+## Reading the code
+
+Read in dependency order; every file starts with a header, and every task, function and process has a comment naming the contract rule it implements (`CODING_GUIDELINES.md` FMT-09).
+
+1. `hdl/apb_bfm_pkg.sv` — the shared enums: revision, features, BFM status, fault modes, monitor violation codes.
+2. `hdl/apb_if.sv` — the pins (APB5 superset) and width legality.
+3. `hdl/apb_driver_bfm_if.sv` — `do_transfer()`: SETUP/ACCESS, wait states, back-to-back, reset abort, fault modes.
+4. `hdl/apb_monitor_bfm_if.sv` — `sample_cycle()`: the protocol checks and the single publication per transfer; `get_transfer()`.
+5. `hvl/types/apb_transaction.sv`, then `hvl/api/*_base.sv` — the width-independent item and the two capabilities.
+6. `hvl/adapter/*.sv` — the only width-specialized classes: request checks and conversion to and from the bus width.
+7. `hvl/config/apb_agent_cfg.sv`, then `hvl/agent/*.sv` — configuration legality, then agent, driver, monitor and sequencer.
+8. `examples/apb_hdl_top.sv` and `examples/apb_hvl_top.sv` — how the two layers are wired and bound per instance.
+9. `tests/` — the HDL smoke, then `apb_poc_test_pkg.sv` and the tests it includes.
+
+The two data paths:
+
+```text
+drive:   sequence -> apb_sequencer -> apb_driver -> apb_drive_proxy_base (cfg.drive)
+         -> apb_drive_proxy #(AW,DW) -> apb_driver_bfm_if.do_transfer() -> apb_if pins
+observe: apb_if pins -> apb_monitor_bfm_if.sample_cycle() -> queue -> get_transfer()
+         -> apb_monitor_proxy #(AW,DW).receive() -> apb_monitor -> ap -> coverage / scoreboard
+```
+
 ## Integrating the UVC
 
 **HDL, per instance:** one `apb_if`, one `apb_driver_bfm_if` and one `apb_monitor_bfm_if` with the **same parameters**. Connect both BFMs to that `apb_if` instance's nets through their ordinary signal ports (ADR-002 decision 7); `examples/apb_hdl_top.sv` is the template. `apb_if` rejects `DATA_WIDTH` outside {8, 16, 32} unless `ALLOW_NONSTANDARD_DW=1` (then 64 is accepted).

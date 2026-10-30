@@ -1,14 +1,14 @@
 # WORK_STATUS — single APB UVC handoff checkpoint
 
-**Checkpoint date:** 2026-10-29
+**Checkpoint date:** 2026-10-30 (session closed by the owner after this checkpoint; resume in a new session from *Resume here*)
 **Repository:** https://github.com/MAHANTHADEEKSHA-SB/apb_uvc
 **Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`; `dev` merged back in at `91c369f` for the toolchain gate; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
 **Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest source commit described here: `5b217c97cf89bc551914f1f43ff89842f85f620a`.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
-**Phase:** M1 sources for steps 2–6 **written** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM. Approved slang (T1) + UVM 1.2 (T3): **HDL elaborates clean; the full UVM POC elaborates with 0 errors/0 warnings in project code**, but the run fails on one error inside the UVM library (`MissingTimeScale`), pending owner decision T5. Nothing simulated.
+**Phase:** M1 sources for steps 2–6 **written and commented** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM following `CODING_GUIDELINES.md`. Approved slang (T1) + UVM 1.2 (T3): **project code elaborates with 0 errors/0 warnings**; the UVM run still fails on one error inside the UVM library (RISK-012, not pursued per D-010). Nothing simulated.
 **Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** coding standard in place (`CODING_GUIDELINES.md`, `DECISION_LOG.md`). Next: the missing passive/reset/APB3 tests (*Known gaps*), written to the guidelines; the owner checks runs manually at the agreed point (D-010).
+**Active task:** none in progress. Next: the missing passive/reset/APB3 tests (*Known gaps*), written to `CODING_GUIDELINES.md` (FMT-09 comments included); the owner checks runs manually at the agreed point (D-010).
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
@@ -97,6 +97,7 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 - Virtual-interface typedefs in the adapters list **all** BFM parameters (including `QUEUE_DEPTH`), so they match the `apb_hdl_top` instances that use defaults.
 - Only APIs common to UVM 1.2 and IEEE 1800.2-2017/2020 are used: `uvm_config_db`, `type_id::create`, `uvm_declare_p_sequencer`, `phase.get_objection().set_drain_time`, `uvm_root::get().set_timeout`, `uvm_report_server::get_server`, `set_report_severity_id_override`.
 - No tool names, `` `ifdef <TOOL> `` or pragmas in any source. The only `` `ifdef `` switches are the project's own `APB_ENABLE_DW64_EXTENSION` and the `apb_defines.svh` guards.
+- 2026-10-30 comment pass (D-013, FMT-09): 92 comment blocks in 25 files; verified comment-only by comparing comment-stripped token streams of HEAD and the working tree (identical; two mutation controls detected); approved T1 commands re-run with unchanged results.
 
 ## First-compile watch list (most likely to need attention)
 
@@ -189,20 +190,20 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 
 **Rule:** One model's confidence is not a validation result. If context/tokens are low, write this handoff before starting further generation.
 
-### Latest handoff — 2026-10-29
+### Latest handoff — 2026-10-30 (session close)
 
 ```text
 HANDOFF FROM: Claude (Claude Code session)
 REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-001-protocol-contract
-EXACT COMMIT SHA: branch HEAD (`git log -1`); last approved tool runs at 386e64d (evidence/APB-004/); formatting regression re-run before the style commit of this push
-GIT STATUS (including uncommitted files): clean after commit
-CURRENT TASK ID: coding standard established (CODING_GUIDELINES.md, DECISION_LOG.md); sources brought into conformance; next = missing tests (Known gaps)
-FILES CREATED/CHANGED (this session): docs/dv-architecture/CODING_GUIDELINES.md (new), DECISION_LOG.md (new); formatting-only conformance edits in 11 SV files (examples/apb_hdl_top.sv one connection per line, 24 lines > 100 cols reflowed, labelled endgroup/endclass, one statement per line in the driver BFM guards, fake proxies and apb_cfg_negative_test); read order in AGENTS.md (root + dv-architecture), CLAUDE_GENERATION_PROMPT.md, dv-architecture README, poc README, this file
-PROVEN WORKING (with log/command): approved T1 commands re-run on the reformatted tree: HDL std/DW=64 errors=0 warnings=0; UVM std/DW=64 project code 0 diagnostics (only the known UVM-library RISK-012 diagnostics). Connection list of apb_hdl_top verified identical before/after (238 pairs). Earlier evidence: evidence/APB-004/ at 386e64d
+EXACT COMMIT SHA: branch HEAD (`git log -1`); last approved tool evidence at 386e64d (evidence/APB-004/); later commits are formatting/comment-only, each re-checked with the approved T1 commands (project code 0 errors, 0 warnings)
+GIT STATUS (including uncommitted files): clean after the session-close commits; branch pushed
+CURRENT TASK ID: none in progress; sources commented per D-013 / FMT-09; next = missing tests (Known gaps)
+FILES CREATED/CHANGED (last session, 2026-10-29..30): CODING_GUIDELINES.md and DECISION_LOG.md (new); formatting conformance in 11 SV files; comment pass in 25 SV files (comment-only, verified); UVC README (Reading the code map); read order in AGENTS.md (root + dv-architecture), CLAUDE_GENERATION_PROMPT.md, dv-architecture README; this file
+PROVEN WORKING (with log/command): approved T1 slang commands on the final tree: HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 project code 0 diagnostics (only the known UVM-library RISK-012 diagnostics). Formal evidence logs: evidence/APB-004/ at 386e64d
 FAILED CHECKS (with log/command): UVM POC elaboration exits 1 on MissingTimeScale inside UVM 1.2 (RISK-012); not pursued (D-010)
 NOT YET RUN: every simulation (owner will run manually); clean UVM elaboration (T5 not approved)
 UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
 OPEN REVIEW FINDING IDS: RISK-001..012
 ARCHITECTURE CONTRACT/ADR AMENDED?: no (contract v0.10, ADR-001 A1); new governing docs CODING_GUIDELINES.md and DECISION_LOG.md
-NEXT EXACT COMMAND/SMALLEST TASK: read DECISION_LOG.md and CODING_GUIDELINES.md; then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with RST-4 event, APB3 integration via an HDL top variant), each to the guidelines, with NOT RUN recorded; no tool runs beyond the approved T1 commands
+NEXT EXACT COMMAND/SMALLEST TASK: in a new session: `git fetch origin && git switch feature/apb-001-protocol-contract`; read DECISION_LOG.md, CODING_GUIDELINES.md, then this file from *Resume here*. Ask the owner the two open confirmations (D-010 wording; defaults Q2/Q4/Q5 and the .sv extension rule). Then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with an RST-4 reset event, APB3 integration via an HDL top variant), each to the guidelines and recorded NOT RUN; run nothing beyond the approved T1 commands
 ```
