@@ -19,6 +19,7 @@ Every decision the repository owner has made, in one place, so a new session, mo
 | D-011 | 2026-10-29 | Before doing or adding any code, it must follow the **highest coding standard**, and the guidelines must make the discussed context portable to the next session or model. | `CODING_GUIDELINES.md` (this push); this file; read order in both `AGENTS.md` files |
 | D-012 | 2026-10-29 | `CODING_GUIDELINES.md` is **mandatory** for every change under `poc/apb_uvc/`. | `CODING_GUIDELINES.md` header; pre-commit checklist §13 |
 | D-013 | 2026-10-30 | Add the necessary comments to the necessary files before the session is closed, so the next session or model can follow the code. | Comment pass over 25 source files; `CODING_GUIDELINES.md` FMT-09 (required comments) and checklist; UVC README *Reading the code* |
+| D-014 | 2026-10-30 | Commit with the owner's name, not "Claude": commits are authored and committed as Mahantha Deeksha S B (same email as the owner's own commits); AI assistance only as the `Co-Authored-By` trailer. The 25 earlier commits on this branch stay authored as Claude unless the owner approves a history rewrite (it needs a force-push, which `AGENTS.md` forbids, and changes every SHA cited in the docs). | `CODING_GUIDELINES.md` GIT-07; `WORK_STATUS.md` *Resume here* step 1; repository-local git identity |
 
 ## Defaults in force, not yet confirmed by the owner
 

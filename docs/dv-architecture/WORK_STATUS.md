@@ -15,7 +15,7 @@
 
 ## Resume here (new session, other model or engineer)
 
-1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file.
+1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file. Then set the commit identity to the owner before any commit (D-014, GIT-07): `git config user.name "Mahantha Deeksha S B" && git config user.email "$(git log origin/dev --author='Mahantha Deeksha S B' --format='%ae' -1)"`.
 2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
 3. **Owner rules in force** (full list and sources in `DECISION_LOG.md`):
    - **Every code change follows `CODING_GUIDELINES.md`** and its §13 checklist is ticked before commit (D-011, D-012).
@@ -202,8 +202,8 @@ FILES CREATED/CHANGED (last session, 2026-10-29..30): CODING_GUIDELINES.md and D
 PROVEN WORKING (with log/command): approved T1 slang commands on the final tree: HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 project code 0 diagnostics (only the known UVM-library RISK-012 diagnostics). Formal evidence logs: evidence/APB-004/ at 386e64d
 FAILED CHECKS (with log/command): UVM POC elaboration exits 1 on MissingTimeScale inside UVM 1.2 (RISK-012); not pursued (D-010)
 NOT YET RUN: every simulation (owner will run manually); clean UVM elaboration (T5 not approved)
-UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review; RST-4 reset event not in the observe API; passive and APB2/APB3 tests not written; owner to decide whether the 25 Claude-authored commits are rewritten (D-014)
 OPEN REVIEW FINDING IDS: RISK-001..012
 ARCHITECTURE CONTRACT/ADR AMENDED?: no (contract v0.10, ADR-001 A1); new governing docs CODING_GUIDELINES.md and DECISION_LOG.md
-NEXT EXACT COMMAND/SMALLEST TASK: in a new session: `git fetch origin && git switch feature/apb-001-protocol-contract`; read DECISION_LOG.md, CODING_GUIDELINES.md, then this file from *Resume here*. Ask the owner the two open confirmations (D-010 wording; defaults Q2/Q4/Q5 and the .sv extension rule). Then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with an RST-4 reset event, APB3 integration via an HDL top variant), each to the guidelines and recorded NOT RUN; run nothing beyond the approved T1 commands
+NEXT EXACT COMMAND/SMALLEST TASK: in a new session: `git fetch origin && git switch feature/apb-001-protocol-contract`; set the owner's commit identity (GIT-07); read DECISION_LOG.md, CODING_GUIDELINES.md, then this file from *Resume here*. Ask the owner the two open confirmations (D-010 wording; defaults Q2/Q4/Q5 and the .sv extension rule). Then write the missing tests from Known gaps (passive agent with an independent Requester, reset mid-transfer with an RST-4 reset event, APB3 integration via an HDL top variant), each to the guidelines and recorded NOT RUN; run nothing beyond the approved T1 commands
 ```
