@@ -8,7 +8,7 @@
 **Phase:** M1 sources for steps 2–6 **written and commented** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM following `CODING_GUIDELINES.md`. Approved slang (T1) + UVM 1.2 (T3): **project code elaborates with 0 errors/0 warnings**; the UVM run still fails on one error inside the UVM library (RISK-012, not pursued per D-010). Nothing simulated.
 **Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** none in progress. Next: the missing passive/reset/APB3 tests (*Known gaps*), written to `CODING_GUIDELINES.md` (FMT-09 comments included); the owner checks runs manually at the agreed point (D-010).
+**Active task:** none in progress. A static flow review was recorded on 2026-11-17 as RV-001..RV-008 in `REVIEW_FEEDBACK.md` (D-017); no source file changed. Next: the owner chooses which proposals to apply (*Next tasks*, recommended order), then the missing passive/reset/APB3 tests (*Known gaps*), written to `CODING_GUIDELINES.md` (FMT-09 comments included); the owner checks runs manually at the agreed point (D-010).
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
@@ -16,7 +16,7 @@
 ## Resume here (new session, other model or engineer)
 
 1. `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file. If that branch is no longer on the remote, it has been merged: start a new `feature/<task-id>-<description>` branch from `dev` (GIT-01) and correct this line. Then set the commit identity to the owner before any commit (D-014, GIT-07): `git config user.name "Mahantha Deeksha S B" && git config user.email "$(git log origin/dev --author='Mahantha Deeksha S B' --format='%ae' -1)"`.
-2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
+2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` (start with the open findings RV-001..RV-008) → `poc/apb_uvc/README.md`.
 3. **Owner rules in force** (full list and sources in `DECISION_LOG.md`):
    - **Every code change follows `CODING_GUIDELINES.md`** and its §13 checklist is ticked before commit (D-011, D-012).
    - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options** (D-006). Approved: **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2` (D-008, D-009). **T5 not approved; open-source compilation is paused, the owner checks runs manually** (D-010).
@@ -45,6 +45,7 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 | IMP-003 | Non-parameterized UVM APB components | WRITTEN, ELABORATED (slang, project code clean), NOT SIMULATED | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
 | IMP-004 | 32/16 dual-instance UVM test | WRITTEN, ELABORATED (slang), NOT SIMULATED | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv` |
 | IMP-005 | Negative tests | WRITTEN, NOT RUN | fault injection (3 modes), cfg legality, unfit-width; independent reviews NOT_STARTED |
+| REV-001 | Static review of the drive, observe, reset, configuration and test flows | RECORDED 2026-11-17; proposals OPEN | `REVIEW_FEEDBACK.md` RV-001..RV-008 at `b406d6a`; by reading only, no tool run; done by the implementing assistant, so not independent and APB-006 stays open |
 
 ## Source manifest
 
@@ -121,6 +122,7 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 - APB2/APB3 integration test: needs an HDL top variant tying the fixture's `PSTRB` to `PWRITE` (IHI 0024D Table 3-1). Not written.
 - Coverage of reset transitions; 4-state injection test (RISK-009).
 - Emulation suitability (`fork` in the BFM, `string` in monitor messages) is unassessed.
+- Open review findings RV-001..RV-008 (`REVIEW_FEEDBACK.md`). In short: the UVM tests never compare a request with its observation (RV-001); `strb` is encoded differently on the two paths when PSTRB is absent (RV-002); the reset flow does not meet RST-2/4/5 (RV-003); the driver BFM can drive off the clock edge (RV-004); POL-01, POL-02, `allow_x_wdata`, a DW=8 instance and sparse strobes in random traffic have no test (RV-005).
 
 ## Next tasks — in priority order
 
@@ -128,8 +130,16 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 - [~] **APB-002 — Review BFM connection legality:** implemented (ordinary-port wiring, clocking blocks in the BFMs, queue + `get_transfer()`); elaborated on approved slang (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
 - [~] **APB-003 — Generate minimal HDL + compile:** sources written; elaborated on approved slang with 0 errors and 0 warnings (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
 - [~] **APB-004 — Generate HVL types/proxies/agent + compile:** sources written (`30cf97d`, `4ff7f39`); elaborated on approved slang + UVM 1.2 with 0 errors and 0 warnings in project code (`evidence/APB-004/`; the run still fails inside the UVM library, RISK-012); simulation NOT RUN.
-- [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`); NOT RUN. Still missing: passive, reset and APB2/APB3 tests (see *Known gaps*).
-- [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit (suggest `5b217c9` or later), record findings and rerun failing tests.
+- [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`); NOT RUN. Still missing: passive, reset and APB2/APB3 tests (see *Known gaps*). RV-001..RV-004 affect these tests; see the recommended order below.
+- [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit (suggest `b406d6a` or later), record findings and rerun failing tests. NOT_STARTED. The static review of 2026-11-17 (RV-001..RV-008) was done by the implementing assistant and does not count as independent.
+
+**Recommended order (PROPOSED 2026-11-17, D-017; the owner decides):**
+
+1. First simulation of what already exists, run by the owner (T4): HDL smoke, `apb_poc_test`, the three fault runs and the two negative tests. Every later step assumes these pass, and no line of this UVC has run yet.
+2. RV-002, RV-001 and RV-004, plus the small items of RV-007: they change the reusable core and the test infrastructure that the new tests build on.
+3. APB3 integration test, then the passive-agent test.
+4. RV-003 (reset rework; needs Q5) together with the reset test.
+5. RV-005, RV-006 and the RV-008 clean-up; then APB-006 and milestones M2/M3.
 
 ## Toolchain (this container, 2026-10-29)
 
@@ -192,7 +202,25 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 
 **Rule:** One model's confidence is not a validation result. If context/tokens are low, write this handoff before starting further generation.
 
-### Latest handoff — 2026-10-30 (session close)
+### Latest handoff — 2026-11-17
+
+```text
+HANDOFF FROM: Claude (Claude Code session)
+REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-005-passive-reset-apb3-tests (from dev at b406d6a, D-016)
+EXACT COMMIT SHA: branch HEAD (`git log -1`); no source file has changed since 10e5fab; last approved tool evidence at 386e64d (evidence/APB-004/)
+GIT STATUS (including uncommitted files): clean after this push; branch pushed
+CURRENT TASK ID: none in progress; static flow review recorded (D-017, REV-001)
+FILES CREATED/CHANGED (this session, 2026-10-30..11-17): documentation only: WORK_STATUS.md, DECISION_LOG.md (D-016, D-017), REVIEW_FEEDBACK.md (RV-001..RV-008, RISK-001 status), dv-architecture README (branch pointer). Nothing under poc/apb_uvc/ changed
+PROVEN WORKING (with log/command): nothing new. Text checks only on the 33 SV/SVH files: 0 lines over 100 columns, no tabs, no trailing whitespace, no tool names
+FAILED CHECKS (with log/command): none run
+NOT YET RUN: every simulation; the approved T1 elaboration was not re-run (documentation-only change; pyslang and the UVM 1.2 clone are not installed in this container, D-010)
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 still on proposed defaults and the D-010 wording still unconfirmed; RV-003 asks whether an item requested during reset waits or aborts; whether emulation-friendly BFMs are a goal (fork, named event, queue and string use) before M2/M3
+OPEN REVIEW FINDING IDS: RISK-001..012; RV-001..RV-008
+ARCHITECTURE CONTRACT/ADR AMENDED?: no. RV-006 (harness) would need a note in ADR-002; RV-003 changes the observe API and contract sections 5 and 7
+NEXT EXACT COMMAND/SMALLEST TASK: `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests`; set the owner's commit identity (GIT-07). Wait for the owner's choice among RV-001..RV-008 and the recommended order in *Next tasks*. If the fixes are approved, start with RV-002 (one line in the monitor BFM plus one sentence in contract section 6), then RV-001 (driver analysis port, test comparator, read-back checks), each written to CODING_GUIDELINES.md and recorded NOT RUN; run nothing beyond the approved T1 commands
+```
+
+### Previous handoff — 2026-10-30 (session close)
 
 ```text
 HANDOFF FROM: Claude (Claude Code session)
