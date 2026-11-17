@@ -6,8 +6,10 @@
 // apb_poc_test: the DW=32 and DW=16 instances run concurrently with the same
 //   non-parameterized agent classes (ADR-001 gate 1): directed traffic, then
 //   constrained-random traffic across in-range and PSLVERR addresses.
-//   Passes when both scoreboards checked traffic with no mismatch, each saw
-//   a back-to-back transfer, and no monitor reported a protocol error.
+//   Passes when, on every instance, the fixture scoreboard checked traffic
+//   with no mismatch, a back-to-back transfer was seen, every finished
+//   transfer matched its observation (path scoreboard, RV-001), the directed
+//   read-back checks held and the monitor reported no protocol error.
 // Included by apb_poc_test_pkg.
 // -----------------------------------------------------------------------------
 
@@ -70,6 +72,7 @@ class apb_poc_test extends apb_poc_base_test;
   protected task run_traffic(apb_agent agent);
     apb_poc_directed_seq directed = apb_poc_directed_seq::type_id::create("directed");
     apb_random_seq       rand_seq = apb_random_seq::type_id::create("rand_seq");
+    directed.check_data = checks_data(agent);
     directed.start(agent.sequencer);
     if (!rand_seq.randomize() with { num_items == 30; })
       `uvm_fatal("APB_POC", "cannot randomize apb_random_seq")
@@ -77,20 +80,30 @@ class apb_poc_test extends apb_poc_base_test;
     rand_seq.start(agent.sequencer);
   endtask
 
-  // Every scoreboard must have checked traffic and seen a back-to-back transfer.
-  virtual function void check_phase(uvm_phase phase);
-    super.check_phase(phase);
-    check_traffic(env.sb_a);
-    check_traffic(env.sb_b);
-    if (env.sb_c != null) check_traffic(env.sb_c);
+  // 1: the directed sequence checks its read-back data on this agent. A derived test
+  // returns 0 for an instance whose data it expects to be wrong.
+  protected virtual function bit checks_data(apb_agent agent);
+    return 1'b1;
   endfunction
 
-  // Errors, not fatals: every instance is checked and reported.
-  protected function void check_traffic(apb_poc_scoreboard sb);
-    if (sb.num_checked == 0)
+  // Every instance must have checked traffic, seen a back-to-back transfer and
+  // matched finished transfers to their observations.
+  virtual function void check_phase(uvm_phase phase);
+    super.check_phase(phase);
+    check_traffic(env.sb_a, env.path_a);
+    check_traffic(env.sb_b, env.path_b);
+    if (env.sb_c != null) check_traffic(env.sb_c, env.path_c);
+  endfunction
+
+  // Errors, not fatals: every instance is checked and reported. A fixture scoreboard
+  // that a test switched off is not required to have checked anything.
+  protected function void check_traffic(apb_poc_scoreboard sb, apb_poc_path_scoreboard path);
+    if (sb.enabled && sb.num_checked == 0)
       `uvm_error("APB_POC", {sb.get_full_name(), ": no transfers checked"})
     if (sb.num_b2b == 0)
       `uvm_error("APB_POC", {sb.get_full_name(), ": no back-to-back transfer observed"})
+    if (path.num_matched == 0)
+      `uvm_error("APB_POC", {path.get_full_name(), ": no finished transfer matched an observation"})
   endfunction
 
 endclass : apb_poc_test

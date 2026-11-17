@@ -8,6 +8,10 @@
 // apb_width_negative_test: a write whose data does not fit the DW=16 bus
 //   must be rejected by the drive adapter (status APB_ST_BAD_REQUEST) and
 //   must never reach the bus — no silent truncation (RISK-003).
+// apb_path_negative_test: instance B's drive path is corrupted on purpose
+//   (apb_corrupt_drive_proxy). B's path scoreboard must report it while its
+//   read-back checks and fixture scoreboard cannot, and instance A must stay
+//   clean (RV-001, VER-03).
 // Included by apb_poc_test_pkg.
 // -----------------------------------------------------------------------------
 
@@ -159,3 +163,48 @@ class apb_width_negative_test extends apb_poc_base_test;
   endtask
 
 endclass : apb_width_negative_test
+
+
+// Runs the apb_poc_test traffic with instance B's drive path corrupted.
+class apb_path_negative_test extends apb_poc_test;
+  `uvm_component_utils(apb_path_negative_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  // Wrap B's drive proxy before the env builds agent_b: the agent takes cfg.drive as
+  // it finds it. The cfg object is the one the integration code registered.
+  virtual function void build_phase(uvm_phase phase);
+    apb_agent_cfg           cfg_b;
+    apb_corrupt_drive_proxy corrupt;
+    super.build_phase(phase);
+    if (!uvm_config_db#(apb_agent_cfg)::get(this, "env.agent_b", "cfg", cfg_b))
+      `uvm_fatal("APB_PATH_NEG", "no apb_agent_cfg registered for env.agent_b")
+    corrupt     = new("corrupt_b", cfg_b.drive);
+    cfg_b.drive = corrupt;
+  endfunction
+
+  // B's APB_PATH mismatches are the expected outcome, so that ID is demoted on that
+  // component only (UVM-13). B's read-back checks and fixture scoreboard stay on: the
+  // corruption is symmetric, so both are expected to pass.
+  virtual function void start_of_simulation_phase(uvm_phase phase);
+    super.start_of_simulation_phase(phase);
+    env.path_b.set_report_severity_id_override(UVM_ERROR, "APB_PATH", UVM_INFO);
+  endfunction
+
+  // Replaces apb_poc_test::check_phase: B must be caught and A must stay clean.
+  virtual function void check_phase(uvm_phase phase);
+    if (env.path_b.num_mismatches == 0) begin
+      `uvm_error("APB_PATH_NEG", "corrupted drive path on instance B was NOT detected")
+    end else begin
+      `uvm_info("APB_PATH_NEG",
+                $sformatf("detected: %0d mismatches on B; B's fixture scoreboard reported %0d",
+                          env.path_b.num_mismatches, env.sb_b.num_mismatches), UVM_LOW)
+    end
+    if (env.path_a.num_mismatches != 0)
+      `uvm_error("APB_PATH_NEG", "instance A reported mismatches: the corruption leaked from B")
+    check_traffic(env.sb_a, env.path_a);
+  endfunction
+
+endclass : apb_path_negative_test

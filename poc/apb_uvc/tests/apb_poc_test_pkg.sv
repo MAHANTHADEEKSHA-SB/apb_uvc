@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// apb_poc_test_pkg — POC environment, fixture scoreboard and tests
+// apb_poc_test_pkg — POC environment, scoreboards and tests
 //
 // Test code only. Uses the UVM core through apb_uvc_pkg and the abstract
 // capabilities through apb_api_pkg; it never names an HDL interface type
@@ -10,6 +10,7 @@
 //   apb_fault_injection_test  +APB_FAULT=1|2|3 on instance A; must be detected
 //   apb_cfg_negative_test     CFG-01..06 legality verdicts (no bus traffic)
 //   apb_width_negative_test   unfit write on DW=16 must be rejected, not truncated
+//   apb_path_negative_test    corrupted drive path on B must be caught (RV-001)
 //
 // Include directory: tests.
 // -----------------------------------------------------------------------------
@@ -23,6 +24,7 @@ package apb_poc_test_pkg;
   import apb_uvc_pkg::*;
 
   `include "apb_poc_scoreboard.sv"
+  `include "apb_poc_path_scoreboard.sv"
   `include "apb_poc_env.sv"
   `include "apb_poc_seqs.sv"
   `include "apb_fake_proxies.sv"

@@ -4,9 +4,13 @@
 // Runs the apb_poc_test traffic with a driver-BFM fault on instance A only
 // (+APB_FAULT=<n>, apb_fault_e; default 1 = PADDR changed in a wait state).
 // Instance A's monitor errors (ID "APB_PROTOCOL") are expected, so they are
-// demoted to info and its scoreboard is disabled. The test passes only if
+// demoted to info, its fixture scoreboard is disabled and its directed
+// sequence does not check read-back data. A's path scoreboard stays on: a
+// faulted transfer that still completes is observed with the values that were
+// requested, and an abandoned one is not expected on the bus. The test passes
+// only if
 //   * A's monitor counted the violation that matches the fault, and
-//   * instance B stayed clean (isolation): its scoreboard and monitor report
+//   * instance B stayed clean (isolation): its scoreboards and monitor report
 //     nothing and it still saw back-to-back traffic.
 // Included by apb_poc_test_pkg.
 // -----------------------------------------------------------------------------
@@ -36,6 +40,12 @@ class apb_fault_injection_test extends apb_poc_test;
                                      fault.name(), env.agent_a.get_full_name()), UVM_LOW)
   endfunction
 
+  // The fault makes A's data wrong (a write is lost or a read answers PSLVERR), so
+  // only B's directed sequence checks its read-back data.
+  protected virtual function bit checks_data(apb_agent agent);
+    return agent != env.agent_a;
+  endfunction
+
   // Replaces apb_poc_test::check_phase: instance A is expected to misbehave
   virtual function void check_phase(uvm_phase phase);
     apb_mon_error_e want;
@@ -53,7 +63,7 @@ class apb_fault_injection_test extends apb_poc_test;
                                        want.name()), UVM_LOW)
     if (env.agent_b.cfg.observe.get_total_errors() != 0)
       `uvm_error("APB_FAULT", "instance B reported protocol errors: fault leaked across instances")
-    check_traffic(env.sb_b);
+    check_traffic(env.sb_b, env.path_b);
   endfunction
 
 endclass : apb_fault_injection_test
