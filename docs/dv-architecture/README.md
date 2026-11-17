@@ -26,4 +26,4 @@ One `poc/apb_uvc/` directory ships its own **APB interface, driver BFM, monitor 
 
 Architecture documentation has been revised for APB-only scope; this is **not an implemented or tested UVC**. Simulator selection, APB revision/pin subset, legal BFM connectivity and monitor transport remain to be validated. Actual status and next steps are in `WORK_STATUS.md`.
 
-**Git workflow:** One feature branch per task, based on `dev` (current: `feature/apb-001-protocol-contract`; the architecture docs came from `feature/dv-architecture-handoff`, merged in `dev` at `3f5c50b`). Do not merge or migrate original APB files without explicit approval.
+**Git workflow:** One feature branch per task, based on `dev`. The current branch is named in the header of `WORK_STATUS.md`, and only there (the architecture docs came from `feature/dv-architecture-handoff`, merged in `dev` at `3f5c50b`). Do not merge or migrate original APB files without explicit approval.

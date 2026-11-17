@@ -1,9 +1,9 @@
 # WORK_STATUS — single APB UVC handoff checkpoint
 
-**Checkpoint date:** 2026-10-30 (session closed by the owner after this checkpoint; resume in a new session from *Resume here*)
+**Checkpoint date:** 2026-11-17 (previous checkpoint 2026-10-30; resume in a new session from *Resume here*)
 **Repository:** https://github.com/MAHANTHADEEKSHA-SB/apb_uvc
-**Branch:** `feature/apb-001-protocol-contract` (from `dev` at `3f5c50b515c7aa67e110e2011801217b35ea6588`; `dev` merged back in at `91c369f` for the toolchain gate; `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`)
-**Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest source commit described here: `5b217c97cf89bc551914f1f43ff89842f85f620a`.
+**Branch:** `feature/apb-005-passive-reset-apb3-tests`, created from `dev` at `b406d6a9c75aca158671f304257ce9a5ba346710` (D-016). The previous branch, `feature/apb-001-protocol-contract`, was merged into `dev` by the owner through pull request #4 on 2026-10-30 (merge commit `b406d6a`; its tip `f8d0416` has the same tree) and then deleted on the remote. `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`.
+**Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest commit that touched a source file: `10e5fab` (comment pass, 2026-10-30); later commits are documentation only.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
 **Phase:** M1 sources for steps 2–6 **written and commented** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM following `CODING_GUIDELINES.md`. Approved slang (T1) + UVM 1.2 (T3): **project code elaborates with 0 errors/0 warnings**; the UVM run still fails on one error inside the UVM library (RISK-012, not pursued per D-010). Nothing simulated.
 **Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
@@ -15,7 +15,7 @@
 
 ## Resume here (new session, other model or engineer)
 
-1. `git fetch origin && git switch feature/apb-001-protocol-contract && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file. Then set the commit identity to the owner before any commit (D-014, GIT-07): `git config user.name "Mahantha Deeksha S B" && git config user.email "$(git log origin/dev --author='Mahantha Deeksha S B' --format='%ae' -1)"`.
+1. `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file. If that branch is no longer on the remote, it has been merged: start a new `feature/<task-id>-<description>` branch from `dev` (GIT-01) and correct this line. Then set the commit identity to the owner before any commit (D-014, GIT-07): `git config user.name "Mahantha Deeksha S B" && git config user.email "$(git log origin/dev --author='Mahantha Deeksha S B' --format='%ae' -1)"`.
 2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` → `poc/apb_uvc/README.md`.
 3. **Owner rules in force** (full list and sources in `DECISION_LOG.md`):
    - **Every code change follows `CODING_GUIDELINES.md`** and its §13 checklist is ticked before commit (D-011, D-012).
@@ -125,9 +125,9 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 ## Next tasks — in priority order
 
 - [~] **APB-001 — Review protocol contract:** drafted in `APB_PROTOCOL_CONTRACT.md`; Q1 decided (ADR-001 A1), Q3 decided (EDA Playground as owner option), Q2/Q4/Q5 implemented on proposed defaults, awaiting owner review.
-- [~] **APB-002 — Review BFM connection legality:** implemented (ordinary-port wiring, clocking blocks in the BFMs, queue + `get_transfer()`); NOT RUN in its current form.
-- [~] **APB-003 — Generate minimal HDL + compile:** sources written; compile NOT RUN pending approval.
-- [~] **APB-004 — Generate HVL types/proxies/agent + compile:** sources written (`30cf97d`, `4ff7f39`); compile NOT RUN pending approval.
+- [~] **APB-002 — Review BFM connection legality:** implemented (ordinary-port wiring, clocking blocks in the BFMs, queue + `get_transfer()`); elaborated on approved slang (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
+- [~] **APB-003 — Generate minimal HDL + compile:** sources written; elaborated on approved slang with 0 errors and 0 warnings (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
+- [~] **APB-004 — Generate HVL types/proxies/agent + compile:** sources written (`30cf97d`, `4ff7f39`); elaborated on approved slang + UVM 1.2 with 0 errors and 0 warnings in project code (`evidence/APB-004/`; the run still fails inside the UVM library, RISK-012); simulation NOT RUN.
 - [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`); NOT RUN. Still missing: passive, reset and APB2/APB3 tests (see *Known gaps*).
 - [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit (suggest `5b217c9` or later), record findings and rerun failing tests.
 
@@ -140,6 +140,8 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 | Verilator from source | 5.052 | Build denied by the session permission policy | Not tried |
 | Commercial simulators (VCS/Xcelium/Questa/DSim) | — | Not in this container | Owner option: EDA Playground |
 | UVM library | — | Not downloaded (needs approval, T3) | Needed for slang elaboration of HVL code |
+
+**2026-11-17:** the session container has been replaced since this table was written. None of these tools is present now: no `slang` or `pyslang`, no Verilator, no simulator, and no UVM 1.2 clone at `/opt/tools/uvm-1.2-gchinna` (checked with `command -v`, `pip show` and `ls`; nothing was executed). Re-running the approved T1 commands would need `pyslang` 12.1.0 and the T3 clone installed again. Not done: D-010 paused the open-source compilation.
 
 ## Validation evidence
 

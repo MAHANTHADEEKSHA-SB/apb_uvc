@@ -6,7 +6,7 @@ Every decision the repository owner has made, in one place, so a new session, mo
 
 | ID | Date | Decision | Applied in |
 |---|---|---|---|
-| D-001 | 2026-10-29 | Branch from `dev` with an industry-standard name and Conventional Commit messages. Working branch: `feature/apb-001-protocol-contract`. | Git history; `CODING_GUIDELINES.md` GIT-01/02 |
+| D-001 | 2026-10-29 | Branch from `dev` with an industry-standard name and Conventional Commit messages. Working branch: `feature/apb-001-protocol-contract`. *Working branch superseded by D-016; the rule stands.* | Git history; `CODING_GUIDELINES.md` GIT-01/02 |
 | D-002 | 2026-10-29 | The UVC must support **all APB revisions (APB2–APB5) and all features**; an instance enables only what its interface has ("if they don't use then don't use"). Default instance: **APB4** with `PSTRB` and `PPROT`. | `ARCHITECTURE_CONTRACT.md` (scope), `APB_PROTOCOL_CONTRACT.md` §1–2, `apb_bfm_pkg::apb_default_features()` |
 | D-003 | 2026-10-29 | Width-independence pair is **DW=32 + DW=16**; **DW=64 kept only as an opt-in non-standard extension**. | ADR-001 Amendment A1; `APB_ENABLE_DW64_EXTENSION`, `ALLOW_NONSTANDARD_DW`, `allow_nonstandard_width` |
 | D-004 | 2026-10-29 | Commercial simulators cannot be installed here; **EDA Playground is the owner's option** for simulation. | `WORK_STATUS.md` T4; `scripts/make_eda_bundle.py`; README |
@@ -21,6 +21,7 @@ Every decision the repository owner has made, in one place, so a new session, mo
 | D-013 | 2026-10-30 | Add the necessary comments to the necessary files before the session is closed, so the next session or model can follow the code. | Comment pass over 25 source files; `CODING_GUIDELINES.md` FMT-09 (required comments) and checklist; UVC README *Reading the code* |
 | D-014 | 2026-10-30 | Commit with the owner's name, not "Claude": commits are authored and committed as Mahantha Deeksha S B (same email as the owner's own commits); AI assistance only as the `Co-Authored-By` trailer. The 25 earlier commits on this branch stay authored as Claude unless the owner approves a history rewrite (it needs a force-push, which `AGENTS.md` forbids, and changes every SHA cited in the docs). | `CODING_GUIDELINES.md` GIT-07; `WORK_STATUS.md` *Resume here* step 1; repository-local git identity |
 | D-015 | 2026-10-30 | **Leave the old commits as they are**; only new commits use the owner's identity. No history rewrite and no force-push for authorship (resolves the open question in D-014). | `CODING_GUIDELINES.md` GIT-07; `WORK_STATUS.md` handoff |
+| D-016 | 2026-10-30 | The owner merged pull request #4 (`feature/apb-001-protocol-contract` into `dev`, merge commit `b406d6a`) and asked to **branch out from `dev` again** with an industry-standard `feature/<name>` branch. New working branch: `feature/apb-005-passive-reset-apb3-tests` (APB-005 is the task the missing tests belong to). | Git history; `WORK_STATUS.md` header and *Resume here*; `CODING_GUIDELINES.md` GIT-01 |
 
 ## Defaults in force, not yet confirmed by the owner
 
