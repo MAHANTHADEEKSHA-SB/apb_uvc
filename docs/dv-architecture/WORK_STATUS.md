@@ -5,10 +5,10 @@
 **Branch:** `feature/apb-005-passive-reset-apb3-tests`, created from `dev` at `b406d6a9c75aca158671f304257ce9a5ba346710` (D-016). The previous branch, `feature/apb-001-protocol-contract`, was merged into `dev` by the owner through pull request #4 on 2026-10-30 (merge commit `b406d6a`; its tip `f8d0416` has the same tree) and then deleted on the remote. `dev` was initially created from `main` at `aa3f1af8bc4c6a0c03f74aaad094ca382fc7ee85`.
 **Current commit SHA:** read actual `git rev-parse HEAD`; this file cannot self-reference its own commit. Latest commit that touched a source file: `10e5fab` (comment pass, 2026-10-30); later commits are documentation only.
 **Working tree:** UNKNOWN for local clones; verify before changing code.
-**Phase:** M1 sources for steps 2–6 **written and commented** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM following `CODING_GUIDELINES.md`. Approved slang (T1) + UVM 1.2 (T3): **project code elaborates with 0 errors/0 warnings**; the UVM run still fails on one error inside the UVM library (RISK-012, not pursued per D-010). Nothing simulated.
-**Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010).
+**Phase:** M1 sources for steps 2–6 **written and commented** (HDL, HVL API, adapters, UVM agent, HVL top, tests) as portable IEEE 1800-2017 SystemVerilog/UVM following `CODING_GUIDELINES.md`. Approved slang (T1) + UVM 1.2 (T3): **project code elaborated with 0 errors/0 warnings up to `10e5fab`**; the UVM run still fails on one error inside the UVM library (RISK-012, not pursued per D-010). **The source changes of 2026-11-17 (`a6f49b9`, `4a6f1fd`, `fb017fe`: RV-001 and RV-002) are not elaborated.** Nothing simulated. Final goal: the environment must scale to emulation (D-018); M1 does not meet it (RV-009).
+**Tool results:** at `386e64d` (`evidence/APB-004/`): HDL smoke std/DW=64 errors=0 warnings=0; UVM POC std/DW=64 errors=1 warnings=2, **all inside UVM 1.2** (1 × `MissingTimeScale` in `uvm_pkg.sv`, 2 × `-Wempty-body`). Earlier `evidence/APB-003b/` (HDL, `3dfd30a`) also clean. Unapproved runs at `5060712` superseded (RISK-010). Nothing has been run on the commits after `10e5fab`.
 **Next implementer:** Claude or another authorized model/engineer.
-**Active task:** none in progress. A static flow review was recorded on 2026-11-17 as RV-001..RV-008 in `REVIEW_FEEDBACK.md` (D-017); no source file changed. Next: the owner chooses which proposals to apply (*Next tasks*, recommended order), then the missing passive/reset/APB3 tests (*Known gaps*), written to `CODING_GUIDELINES.md` (FMT-09 comments included); the owner checks runs manually at the agreed point (D-010).
+**Active task:** none in progress. On 2026-11-17 the owner stated the final goal (emulation, D-018) and allowed the very significant review fixes (D-019): RV-001 and RV-002 are implemented in `a6f49b9`, `4a6f1fd` and `fb017fe`, **NOT RUN and not elaborated**. Next: the owner's go-ahead to re-run the approved T1 elaboration on these commits, and the first simulation; then the decision on the emulation restyle of the BFMs (RV-009). See *Next tasks*.
 **Spec reference:** Arm AMBA APB Protocol Specification, ARM IHI 0024D (ID041221, 09 April 2021; adds APB5). The PDF itself is Arm copyright and is not committed here.
 
 > Do not trust this status without comparing it to the real files, current Git SHA, and logs. Any difference must be reconciled explicitly.
@@ -16,13 +16,14 @@
 ## Resume here (new session, other model or engineer)
 
 1. `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests && git status --short && git log --oneline -12`. Compare HEAD with the SHAs in this file. If that branch is no longer on the remote, it has been merged: start a new `feature/<task-id>-<description>` branch from `dev` (GIT-01) and correct this line. Then set the commit identity to the owner before any commit (D-014, GIT-07): `git config user.name "Mahantha Deeksha S B" && git config user.email "$(git log origin/dev --author='Mahantha Deeksha S B' --format='%ae' -1)"`.
-2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.10) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` (start with the open findings RV-001..RV-008) → `poc/apb_uvc/README.md`.
+2. Read in order: `AGENTS.md` (root) → `docs/dv-architecture/AGENTS.md` → **`DECISION_LOG.md`** (all owner decisions D-001..) → **`CODING_GUIDELINES.md`** (mandatory standard + pre-commit checklist) → `ARCHITECTURE_CONTRACT.md` (v0.11) → ADR-001 (with Amendment A1) → ADR-002 → `APB_PROTOCOL_CONTRACT.md` → this file → `REVIEW_FEEDBACK.md` (start with the open findings RV-001..RV-008) → `poc/apb_uvc/README.md`.
 3. **Owner rules in force** (full list and sources in `DECISION_LOG.md`):
    - **Every code change follows `CODING_GUIDELINES.md`** and its §13 checklist is ticked before commit (D-011, D-012).
-   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options** (D-006). Approved: **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2` (D-008, D-009). **T5 not approved; open-source compilation is paused, the owner checks runs manually** (D-010).
+   - **No tool execution** (simulator, compiler, elaborator, lint) without explicit owner approval of tool, version, commands **and options** (D-006). Approved: **T1** slang 12.1.0 with exactly the commands in the approval table; **T3** UVM 1.2 from the owner-named mirror `github.com/gchinna/uvm-1.2` (D-008, D-009). **T5 not approved; open-source compilation is paused, the owner checks runs manually** (D-010). **Ask the owner before running any tool, the approved T1 commands included:** on 2026-11-17 a re-run of T1 was refused pending the owner's explicit go-ahead in the session.
    - **No tool-specific workarounds:** no `` `ifdef <TOOL> ``, tool pragmas or tool-motivated rewrites (D-005). Log tool shortfalls in `REVIEW_FEEDBACK.md` instead.
    - Width pair **DW=32 + DW=16**; DW=64 only behind `APB_ENABLE_DW64_EXTENSION` / `ALLOW_NONSTANDARD_DW` / `allow_nonstandard_width`, never reported as compliant.
    - Revisions APB2–APB5 are per-instance configuration; default APB4 with `PSTRB` and `PPROT`.
+   - **Final goal: the same environment must scale to emulation** (D-018). M1 does not meet it (RV-009). Proposed guard, owner to confirm: add no new time-consuming statement to HVL code and no new dynamic process, named event, queue or string to a BFM.
    - Do not touch the root-level legacy `apb_*.sv` files. No force-push, no merge into `dev`/`main`.
    - Mark every unexecuted stage **NOT RUN**.
 4. **What exists:** see *Source manifest*. **What is missing:** see *Known gaps*.
@@ -38,25 +39,25 @@ Deliver **one reusable APB UVC** rooted at `poc/apb_uvc/`, including its **own**
 |---|---|---|---|
 | DOC-001 | ADR-001: HVL concrete proxies | ACCEPTED_FOR_POC, amended A1 | `ADR-001-HVL-PROXY-PLACEMENT.md`; not compiler validated |
 | DOC-002 | ADR-002: distinct drive/observe APIs; 2 BFMs / 1 APB signal interface | ACCEPTED_LOGIC | `ADR-002-SEPARATE-DRIVE-OBSERVE-APIS.md`; wiring not yet compiled |
-| DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md` v0.10, `CLAUDE_GENERATION_PROMPT.md` |
+| DOC-003 | Single-APB-UVC directory/contract/prompt | DOCUMENTED | `DIRECTORY_ARCHITECTURE.md`, `ARCHITECTURE_CONTRACT.md` v0.11, `CLAUDE_GENERATION_PROMPT.md` |
 | DOC-004 | APB-001 protocol contract | PROPOSED | `APB_PROTOCOL_CONTRACT.md`; Q1/Q3 decided; Q2/Q4/Q5 on proposed defaults |
 | IMP-001 | APB interface and BFMs | WRITTEN_M1 (APB2/3/4), ELABORATED (slang), NOT SIMULATED | `poc/apb_uvc/hdl/*`; `evidence/APB-003b/`; 4-state/release unverified (RISK-009); APB5 features M2/M3 |
 | IMP-002 | Proxy bases and concrete adapters | WRITTEN, ELABORATED (slang, project code clean), NOT SIMULATED | `hvl/api/*`, `hvl/adapter/*`; two specializations per adapter elaborate (`evidence/APB-004/`) |
-| IMP-003 | Non-parameterized UVM APB components | WRITTEN, ELABORATED (slang, project code clean), NOT SIMULATED | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
-| IMP-004 | 32/16 dual-instance UVM test | WRITTEN, ELABORATED (slang), NOT SIMULATED | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv` |
-| IMP-005 | Negative tests | WRITTEN, NOT RUN | fault injection (3 modes), cfg legality, unfit-width; independent reviews NOT_STARTED |
-| REV-001 | Static review of the drive, observe, reset, configuration and test flows | RECORDED 2026-11-17; proposals OPEN | `REVIEW_FEEDBACK.md` RV-001..RV-008 at `b406d6a`; by reading only, no tool run; done by the implementing assistant, so not independent and APB-006 stays open |
+| IMP-003 | Non-parameterized UVM APB components | WRITTEN, ELABORATED up to `10e5fab` (slang, project code clean); `apb_driver` (`done_ap`) and `apb_coverage` changed on 2026-11-17 and not elaborated since; NOT SIMULATED | `hvl/config`, `hvl/agent`, `hvl/coverage`, `hvl/sequences`, `hvl/pkg/apb_uvc_pkg.sv` |
+| IMP-004 | 32/16 dual-instance UVM test | WRITTEN, ELABORATED up to `10e5fab` (slang); path scoreboard and read-back checks added on 2026-11-17 and not elaborated; NOT SIMULATED | `examples/apb_hvl_top.sv`, `tests/apb_poc_test.sv`, `tests/apb_poc_path_scoreboard.sv` |
+| IMP-005 | Negative tests | WRITTEN, NOT RUN | fault injection (3 modes), cfg legality, unfit-width, corrupted drive path (`apb_path_negative_test`), instance without PSTRB (`apb_no_pstrb_test`); the last two are not elaborated; independent reviews NOT_STARTED |
+| REV-001 | Static review of the drive, observe, reset, configuration and test flows | RECORDED 2026-11-17; RV-001 and RV-002 FIXED_UNVERIFIED, RV-003..RV-009 OPEN | `REVIEW_FEEDBACK.md` RV-001..RV-008 at `b406d6a`, RV-009 at `fb017fe`; by reading only, no tool run; done by the implementing assistant, so not independent and APB-006 stays open |
 
 ## Source manifest
 
-All paths under `poc/apb_uvc/`. Every SV file elaborates with **0 errors and 0 warnings in project code** on approved slang at `386e64d` (`evidence/APB-004/`); the UVM run as a whole still fails on the UVM-library timescale error (T5). Nothing is simulated.
+All paths under `poc/apb_uvc/`. Every SV file elaborated with **0 errors and 0 warnings in project code** on approved slang at `386e64d` (`evidence/APB-004/`); the UVM run as a whole still fails on the UVM-library timescale error (T5). Files marked *changed 2026-11-17* or *new 2026-11-17* have **not been elaborated** since. Nothing is simulated.
 
 | Path | Content | Status |
 |---|---|---|
 | `hdl/apb_bfm_pkg.sv` | Types shared by BFMs and adapters (revision, features, status, fault, monitor-error enums); no UVM | WRITTEN |
 | `hdl/apb_if.sv` | APB5 superset pins, modports, width legality checks | WRITTEN |
 | `hdl/apb_driver_bfm_if.sv` | Requester drive BFM: SETUP/ACCESS, wait states, back-to-back, `'z` release, reset abort (`fork…join_any`), 3 fault modes | WRITTEN_M1 |
-| `hdl/apb_monitor_bfm_if.sv` | Passive BFM: clocking-block sampling, protocol checks, bounded queue, `get_transfer()` with named event | WRITTEN_M1 |
+| `hdl/apb_monitor_bfm_if.sv` | Passive BFM: clocking-block sampling, protocol checks, bounded queue, `get_transfer()` with named event; without PSTRB a write is reported with all strobe lanes set (RV-002) | WRITTEN_M1, changed 2026-11-17 |
 | `hvl/types/apb_defines.svh` | `APB_MAX_ADDR_WIDTH` 32, `APB_MAX_DATA_WIDTH` 32 (64 with the extension switch) | WRITTEN |
 | `hvl/types/apb_transaction.sv` | `apb_dir_e`, `apb_transaction` (4-state, bus-context constraints, copy/compare/print) | WRITTEN |
 | `hvl/api/apb_drive_proxy_base.sv` | Abstract drive capability (+ POL-01/02 and X-wdata policies) | WRITTEN |
@@ -64,15 +65,15 @@ All paths under `poc/apb_uvc/`. Every SV file elaborates with **0 errors and 0 w
 | `hvl/adapter/apb_drive_proxy.sv` | `apb_drive_proxy #(AW,DW,NUM_SEL,user widths)`: typed vif, lossless/legality request checks | WRITTEN |
 | `hvl/adapter/apb_monitor_proxy.sv` | `apb_monitor_proxy #(…,QUEUE_DEPTH)`: typed vif, builds a new transaction per transfer | WRITTEN |
 | `hvl/config/apb_agent_cfg.sv` | Per-instance cfg; `legality_error()` / `validate()` (CFG-01..06, M1 limits) | WRITTEN |
-| `hvl/agent/apb_sequencer.sv`, `apb_driver.sv`, `apb_monitor.sv`, `apb_agent.sv` | Non-parameterized UVM components | WRITTEN |
-| `hvl/coverage/apb_coverage.sv` | Protocol coverage (dir, waits, PSLVERR, strobe kind, b2b, PPROT, crosses) | WRITTEN |
+| `hvl/agent/apb_sequencer.sv`, `apb_driver.sv`, `apb_monitor.sv`, `apb_agent.sv` | Non-parameterized UVM components; `apb_driver` publishes a copy of every finished item on `done_ap` (RV-001) | WRITTEN; `apb_driver.sv` changed 2026-11-17 |
+| `hvl/coverage/apb_coverage.sv` | Protocol coverage (dir, waits, PSLVERR, strobe kind, b2b, PPROT, crosses); strobe kind sampled only on an instance with PSTRB | WRITTEN, changed 2026-11-17 |
 | `hvl/sequences/apb_base_seq.sv`, `apb_random_seq.sv` | Helpers `do_write/do_write_strb/do_read`; random window sequence | WRITTEN |
 | `hvl/pkg/apb_api_pkg.sv`, `apb_uvc_pkg.sv`, `apb_adapter_pkg.sv` | Packages (compile in this order after HDL + uvm_pkg) | WRITTEN |
 | `examples/apb_example_slave.sv` | APB4 Completer fixture (wait states = PADDR[5:4], PSLVERR ≥ 0x100) | WRITTEN |
 | `examples/apb_hdl_top.sv` | Instances A (DW=32) + B (DW=16), own clocks/resets; C (DW=64) under the extension switch | WRITTEN |
 | `examples/apb_hvl_top.sv` | Explicit adapter construction, one cfg per instance, single `uvm_config_db::set`, `run_test` | WRITTEN |
 | `tests/apb_hdl_smoke.sv` | HDL-only directed + fault smoke (no UVM) | WRITTEN |
-| `tests/apb_poc_test_pkg.sv` + `apb_poc_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv` | UVM POC env, fixture scoreboard, tests | WRITTEN |
+| `tests/apb_poc_test_pkg.sv` + `apb_poc_scoreboard.sv`, `apb_poc_path_scoreboard.sv` (new 2026-11-17), `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv`, `apb_no_pstrb_test.sv` (new 2026-11-17) | UVM POC env, fixture scoreboard, path scoreboard (finished requests versus observations), tests | WRITTEN; all but `apb_poc_scoreboard.sv` changed 2026-11-17 |
 | `filelists/apb_hdl.f`, `apb_hvl.f`, `apb_hdl_smoke.f`, `apb_poc.f` | Compile order; use `-F` | WRITTEN |
 | `scripts/slang_elab.py` | slang elaboration wrapper (needs approval to run) | WRITTEN |
 | `scripts/make_eda_bundle.py` | Single-file EDA Playground bundle; inlines includes (text only; exercised on `apb_poc.f` and `apb_hdl_smoke.f`) | WRITTEN |
@@ -89,6 +90,8 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 | UVM fault injection | same | `+UVM_TESTNAME=apb_fault_injection_test +APB_FAULT=1|2|3` | `TEST_RESULT: PASS` (A detected, B clean) |
 | UVM cfg legality | same | `+UVM_TESTNAME=apb_cfg_negative_test` | `TEST_RESULT: PASS`; 16 verdict lines `ok:` |
 | UVM width boundary | same | `+UVM_TESTNAME=apb_width_negative_test` | `TEST_RESULT: PASS` (unfit write rejected, not on the bus) |
+| UVM corrupted drive path | same | `+UVM_TESTNAME=apb_path_negative_test` | `TEST_RESULT: PASS` (corruption on B reported by `path_b`; A clean) |
+| UVM instance without PSTRB | same | `+UVM_TESTNAME=apb_no_pstrb_test` | `TEST_RESULT: PASS` (B as APB3: every transfer matched) |
 | DW=64 extension | add `+define+APB_ENABLE_DW64_EXTENSION` to any UVM flow | as above | agent_c also passes |
 
 ## Static self-review done (2026-10-29, no tool)
@@ -99,6 +102,7 @@ The original root-level `apb_*.sv` implementation exists and is **out of scope f
 - Only APIs common to UVM 1.2 and IEEE 1800.2-2017/2020 are used: `uvm_config_db`, `type_id::create`, `uvm_declare_p_sequencer`, `phase.get_objection().set_drain_time`, `uvm_root::get().set_timeout`, `uvm_report_server::get_server`, `set_report_severity_id_override`.
 - No tool names, `` `ifdef <TOOL> `` or pragmas in any source. The only `` `ifdef `` switches are the project's own `APB_ENABLE_DW64_EXTENSION` and the `apb_defines.svh` guards.
 - 2026-10-30 comment pass (D-013, FMT-09): 92 comment blocks in 25 files; verified comment-only by comparing comment-stripped token streams of HEAD and the working tree (identical; two mutation controls detected); approved T1 commands re-run with unchanged results.
+- 2026-11-17, RV-001 and RV-002 changes (no tool): every pure virtual method of `apb_drive_proxy_base` is implemented in `apb_corrupt_drive_proxy` with a matching signature; `checks_data()` and `check_traffic()` have the same signatures in `apb_poc_test` and in the tests derived from it; `apb_poc_path_scoreboard.sv` is included before `apb_poc_env.sv`; text checks on the 35 SV/SVH files show 0 lines over 100 columns, no tabs, no trailing whitespace and no tool names, and the keyword pairs balance in the changed files. **Not elaborated.**
 
 ## First-compile watch list (most likely to need attention)
 
@@ -119,10 +123,10 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 - CFG-05 (user widths vs physical) arrives with M2.
 - RST-4 reset *event* in the observe API: only counters (`get_reset_count`) exist. No reset test yet, and the fixture scoreboard does not model reset clearing.
 - Passive-agent test: needs an independent Requester on a bus (a second monitor-only instance or an RTL master). Not written.
-- APB2/APB3 integration test: needs an HDL top variant tying the fixture's `PSTRB` to `PWRITE` (IHI 0024D Table 3-1). Not written.
+- APB2/APB3 integration test: needs an HDL top variant tying the fixture's `PSTRB` to `PWRITE` (IHI 0024D Table 3-1). Not written. `apb_no_pstrb_test` (2026-11-17) covers only the agreement between a request and its observation on an APB3-configured instance; the fixture on that bus still ignores the writes.
 - Coverage of reset transitions; 4-state injection test (RISK-009).
-- Emulation suitability (`fork` in the BFM, `string` in monitor messages) is unassessed.
-- Open review findings RV-001..RV-008 (`REVIEW_FEEDBACK.md`). In short: the UVM tests never compare a request with its observation (RV-001); `strb` is encoded differently on the two paths when PSTRB is absent (RV-002); the reset flow does not meet RST-2/4/5 (RV-003); the driver BFM can drive off the clock edge (RV-004); POL-01, POL-02, `allow_x_wdata`, a DW=8 instance and sparse strobes in random traffic have no test (RV-005).
+- Emulation readiness (the final goal, D-018): assessed by reading on 2026-11-17 and **not met**. The constructs in the way and a proposed restyle of the BFMs are in RV-009.
+- Review findings (`REVIEW_FEEDBACK.md`): RV-001 and RV-002 are implemented but unverified (NOT RUN). Still open: the reset flow does not meet RST-2/4/5 (RV-003); the driver BFM can drive off the clock edge (RV-004); POL-01, POL-02, `allow_x_wdata`, a DW=8 instance and sparse strobes in random traffic have no test (RV-005); the wiring harness (RV-006); the small items (RV-007); the documentation duplication (RV-008); emulation readiness (RV-009).
 
 ## Next tasks — in priority order
 
@@ -130,16 +134,15 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 - [~] **APB-002 — Review BFM connection legality:** implemented (ordinary-port wiring, clocking blocks in the BFMs, queue + `get_transfer()`); elaborated on approved slang (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
 - [~] **APB-003 — Generate minimal HDL + compile:** sources written; elaborated on approved slang with 0 errors and 0 warnings (`evidence/APB-003b/`, `evidence/APB-004/`); simulation NOT RUN.
 - [~] **APB-004 — Generate HVL types/proxies/agent + compile:** sources written (`30cf97d`, `4ff7f39`); elaborated on approved slang + UVM 1.2 with 0 errors and 0 warnings in project code (`evidence/APB-004/`; the run still fails inside the UVM library, RISK-012); simulation NOT RUN.
-- [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`); NOT RUN. Still missing: passive, reset and APB2/APB3 tests (see *Known gaps*). RV-001..RV-004 affect these tests; see the recommended order below.
+- [~] **APB-005 — Run APB POC:** tests written (`6bf7f84`, `5b217c9`; on 2026-11-17 `4a6f1fd` and `fb017fe` added the path scoreboard, `apb_path_negative_test` and `apb_no_pstrb_test`); NOT RUN. Still missing: passive, reset and APB2/APB3 integration tests (see *Known gaps*); the passive and reset tests wait for the decision on RV-009.
 - [ ] **APB-006 — Independent reviews:** ChatGPT and Gemini review the same pinned commit (suggest `b406d6a` or later), record findings and rerun failing tests. NOT_STARTED. The static review of 2026-11-17 (RV-001..RV-008) was done by the implementing assistant and does not count as independent.
 
-**Recommended order (PROPOSED 2026-11-17, D-017; the owner decides):**
+**Recommended order (PROPOSED; updated 2026-11-17 after D-018 and D-019; the owner decides):**
 
-1. First simulation of what already exists, run by the owner (T4): HDL smoke, `apb_poc_test`, the three fault runs and the two negative tests. Every later step assumes these pass, and no line of this UVC has run yet.
-2. RV-002, RV-001 and RV-004, plus the small items of RV-007: they change the reusable core and the test infrastructure that the new tests build on.
-3. APB3 integration test, then the passive-agent test.
-4. RV-003 (reset rework; needs Q5) together with the reset test.
-5. RV-005, RV-006 and the RV-008 clean-up; then APB-006 and milestones M2/M3.
+1. The owner's go-ahead to re-run the approved T1 elaboration on `fb017fe` (the changed files are unelaborated), and the first simulation of the tests, run by the owner (T4). No line of this UVC has run yet.
+2. The decision on the emulation restyle of the BFMs (RV-009): the target emulator, the NN-01 question and approval of the proposal. RV-003 (reset) and RV-004 (edge alignment) are solved inside it.
+3. The APB3 integration test with a tied-off fixture, and the passive-agent test in the form the restyle allows (no driver BFM instead of a released one).
+4. RV-005 to RV-008; then APB-006 and milestones M2/M3.
 
 ## Toolchain (this container, 2026-10-29)
 
@@ -151,7 +154,7 @@ Classify any failure as **source bug**, **standard violation** or **tool limitat
 | Commercial simulators (VCS/Xcelium/Questa/DSim) | — | Not in this container | Owner option: EDA Playground |
 | UVM library | — | Not downloaded (needs approval, T3) | Needed for slang elaboration of HVL code |
 
-**2026-11-17:** the session container has been replaced since this table was written. None of these tools is present now: no `slang` or `pyslang`, no Verilator, no simulator, and no UVM 1.2 clone at `/opt/tools/uvm-1.2-gchinna` (checked with `command -v`, `pip show` and `ls`; nothing was executed). Re-running the approved T1 commands would need `pyslang` 12.1.0 and the T3 clone installed again. Not done: D-010 paused the open-source compilation.
+**2026-11-17:** the session container has been replaced since this table was written and came without any of these tools. For the RV-001/RV-002 changes the approved versions were put back, outside the repository: `pyslang` 12.1.0 from PyPI in a virtual environment at `/opt/tools/pyslang-12.1.0`, and the T3 clone at `/opt/tools/uvm-1.2-gchinna` (commit `a3cb911`, the one recorded in `evidence/APB-004/`). **Neither was executed:** the re-run of the approved T1 commands was refused by the session's permission check, which wants the owner's explicit go-ahead in the session before an elaborator runs. Ask the owner first, even for the approved commands. The container is not permanent; a new session has to install both again.
 
 ## Validation evidence
 
@@ -166,7 +169,9 @@ Current sources: everything **elaborated** on approved slang (below); **nothing 
 | UVM `apb_fault_injection_test` ×3 | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
 | UVM `apb_cfg_negative_test`, `apb_width_negative_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
 | 4-state / drive release / X-Z checks | — | NOT RUN | NOT RUN | — | — |
-| Reset mid-transfer, passive instance, APB2/APB3 configs | — | NOT WRITTEN | — | — | — |
+| Elaboration of the 2026-11-17 changes (RV-001, RV-002) | slang 12.1.0 + UVM 1.2 (T1 + T3, approved 2026-10-29) | the T1 commands of the approval table | **NOT RUN** — refused pending the owner's explicit go-ahead in the session | — | `fb017fe` |
+| UVM `apb_path_negative_test`, `apb_no_pstrb_test` | — (T4 proposed) | NOT RUN | NOT RUN | — | — |
+| Reset mid-transfer, passive instance, APB2/APB3 integration | — | NOT WRITTEN | — | — | — |
 | Emulation | UNKNOWN | NOT RUN | NOT RUN | — | — |
 | *Superseded:* slang + Verilator 5.020 on `5060712` | slang 12.1.0, Verilator 5.020 | former `run_hdl_smoke.sh` | PASS (unapproved, revision had workarounds) | `evidence/APB-003a/logs/` | `5060712` |
 
@@ -207,17 +212,17 @@ NEXT EXACT COMMAND/SMALLEST TASK:
 ```text
 HANDOFF FROM: Claude (Claude Code session)
 REPO/BRANCH: MAHANTHADEEKSHA-SB/apb_uvc @ feature/apb-005-passive-reset-apb3-tests (from dev at b406d6a, D-016)
-EXACT COMMIT SHA: branch HEAD (`git log -1`); no source file has changed since 10e5fab; last approved tool evidence at 386e64d (evidence/APB-004/)
+EXACT COMMIT SHA: branch HEAD (`git log -1`); last source commit fb017fe; last approved tool evidence at 386e64d (evidence/APB-004/), re-checked up to 10e5fab
 GIT STATUS (including uncommitted files): clean after this push; branch pushed
-CURRENT TASK ID: none in progress; static flow review recorded (D-017, REV-001)
-FILES CREATED/CHANGED (this session, 2026-10-30..11-17): documentation only: WORK_STATUS.md, DECISION_LOG.md (D-016, D-017), REVIEW_FEEDBACK.md (RV-001..RV-008, RISK-001 status), dv-architecture README (branch pointer). Nothing under poc/apb_uvc/ changed
-PROVEN WORKING (with log/command): nothing new. Text checks only on the 33 SV/SVH files: 0 lines over 100 columns, no tabs, no trailing whitespace, no tool names
+CURRENT TASK ID: none in progress. Done this session: flow review (D-017), RV-001 and RV-002 implemented (D-019), final goal recorded (D-018)
+FILES CREATED/CHANGED (this session, 2026-10-30..11-17): sources: hvl/agent/apb_driver.sv (done_ap), hdl/apb_monitor_bfm_if.sv (strb without PSTRB), hvl/coverage/apb_coverage.sv, tests/apb_poc_path_scoreboard.sv (new), tests/apb_no_pstrb_test.sv (new), tests/apb_poc_env.sv, apb_poc_seqs.sv, apb_poc_test.sv, apb_fault_injection_test.sv, apb_fake_proxies.sv, apb_negative_tests.sv, apb_poc_test_pkg.sv. Docs: WORK_STATUS.md, DECISION_LOG.md (D-016..D-019), REVIEW_FEEDBACK.md (RV-001..RV-009), ARCHITECTURE_CONTRACT.md v0.11 (final goal), APB_PROTOCOL_CONTRACT.md (strb row, test manifest), UVC README, dv-architecture README
+PROVEN WORKING (with log/command): nothing new. Text checks only on the 35 SV/SVH files: 0 lines over 100 columns, no tabs, no trailing whitespace, no tool names; keyword pairs balanced in the changed files
 FAILED CHECKS (with log/command): none run
-NOT YET RUN: every simulation; the approved T1 elaboration was not re-run (documentation-only change; pyslang and the UVM 1.2 clone are not installed in this container, D-010)
-UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: Q2/Q4/Q5 still on proposed defaults and the D-010 wording still unconfirmed; RV-003 asks whether an item requested during reset waits or aborts; whether emulation-friendly BFMs are a goal (fork, named event, queue and string use) before M2/M3
-OPEN REVIEW FINDING IDS: RISK-001..012; RV-001..RV-008
-ARCHITECTURE CONTRACT/ADR AMENDED?: no. RV-006 (harness) would need a note in ADR-002; RV-003 changes the observe API and contract sections 5 and 7
-NEXT EXACT COMMAND/SMALLEST TASK: `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests`; set the owner's commit identity (GIT-07). Wait for the owner's choice among RV-001..RV-008 and the recommended order in *Next tasks*. If the fixes are approved, start with RV-002 (one line in the monitor BFM plus one sentence in contract section 6), then RV-001 (driver analysis port, test comparator, read-back checks), each written to CODING_GUIDELINES.md and recorded NOT RUN; run nothing beyond the approved T1 commands
+NOT YET RUN: every simulation; elaboration of a6f49b9, 4a6f1fd and fb017fe (the approved T1 re-run was refused pending the owner's explicit go-ahead; pyslang 12.1.0 and the UVM 1.2 clone are installed in this container but were not executed)
+UNRESOLVED APB SPEC/PORT/SCHEDULING QUESTIONS: may the approved T1 commands be re-run (owner); the target emulator and whether its markers may be an exception to NN-01 (RV-009); approval of the BFM restyle and of the proposed guard in the contract; Q2/Q4/Q5 still on proposed defaults and the D-010 wording still unconfirmed; RV-003: does an item requested during reset wait or abort
+OPEN REVIEW FINDING IDS: RISK-001..012; RV-001 and RV-002 FIXED_UNVERIFIED; RV-003..RV-009 OPEN
+ARCHITECTURE CONTRACT/ADR AMENDED?: contract v0.11 states the final goal (D-018) and a proposed guard; no accepted decision changed. RV-009 would need an ADR-002 amendment (monitor transport) and new coding rules
+NEXT EXACT COMMAND/SMALLEST TASK: `git fetch origin && git switch feature/apb-005-passive-reset-apb3-tests`; set the owner's commit identity (GIT-07). Ask the owner (1) whether the approved T1 commands may run on fb017fe; if yes, install pyslang 12.1.0 and the T3 clone, run the four commands and record them under evidence/APB-005/; (2) for the emulator name and the decision on RV-009. Write no BFM code before that decision: RV-003, RV-004 and the passive test depend on it
 ```
 
 ### Previous handoff — 2026-10-30 (session close)

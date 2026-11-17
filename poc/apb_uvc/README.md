@@ -2,7 +2,7 @@
 
 One reusable APB Requester (master) UVC. Two instances of the same source — **AW=32/DW=32** and **AW=32/DW=16** — run side by side to show width independence. **DW=64** is available only as an opt-in, non-standard extension (ADR-001 Amendment A1).
 
-**Status:** milestone M1 sources for HDL, HVL API, adapters, UVM agent, HVL top and tests are written as **portable IEEE 1800-2017 SystemVerilog/UVM with no tool-specific code paths**. **Nothing has been compiled or simulated yet** (toolchain approval pending — see `../../docs/dv-architecture/WORK_STATUS.md`, which also lists the known gaps).
+**Status:** milestone M1 sources for HDL, HVL API, adapters, UVM agent, HVL top and tests are written as **portable IEEE 1800-2017 SystemVerilog/UVM with no tool-specific code paths**. **Nothing has been simulated yet.** What has been elaborated, with which tool and at which commit, is recorded in `../../docs/dv-architecture/WORK_STATUS.md` and only there; that file also lists the known gaps. The final goal is that this environment scales to emulation (`DECISION_LOG.md` D-018); M1 does not meet it yet (`REVIEW_FEEDBACK.md` RV-009).
 
 Governing documents: `../../docs/dv-architecture/` — `DECISION_LOG.md` (owner decisions), `CODING_GUIDELINES.md` (mandatory coding standard), `APB_PROTOCOL_CONTRACT.md` (pins, rules, reset, transaction), `ARCHITECTURE_CONTRACT.md`, ADR-001, ADR-002, `WORK_STATUS.md`.
 
@@ -39,7 +39,7 @@ examples/apb_example_slave.sv   small APB4 Completer (test fixture only)
 examples/apb_hdl_top.sv         instances A (DW=32) and B (DW=16), own clocks/resets
 examples/apb_hvl_top.sv         binds adapters, registers one cfg per instance, run_test
 tests/apb_hdl_smoke.sv          HDL-only smoke (no UVM)
-tests/apb_poc_test_pkg.sv       UVM POC env, fixture scoreboard and tests
+tests/apb_poc_test_pkg.sv       UVM POC env, fixture and path scoreboards, tests
 filelists/apb_hdl.f             reusable HDL core
 filelists/apb_hvl.f             reusable HVL core
 filelists/apb_hdl_smoke.f       HDL core + example + HDL smoke
@@ -66,14 +66,18 @@ Read in dependency order; every file starts with a header, and every task, funct
 8. `examples/apb_hdl_top.sv` and `examples/apb_hvl_top.sv` — how the two layers are wired and bound per instance.
 9. `tests/` — the HDL smoke, then `apb_poc_test_pkg.sv` and the tests it includes.
 
-The two data paths:
+The two data paths, and how the tests tie them together:
 
 ```text
 drive:   sequence -> apb_sequencer -> apb_driver -> apb_drive_proxy_base (cfg.drive)
          -> apb_drive_proxy #(AW,DW) -> apb_driver_bfm_if.do_transfer() -> apb_if pins
 observe: apb_if pins -> apb_monitor_bfm_if.sample_cycle() -> queue -> get_transfer()
          -> apb_monitor_proxy #(AW,DW).receive() -> apb_monitor -> ap -> coverage / scoreboard
+check:   apb_driver.done_ap (copy of every finished item) + apb_monitor.ap (observations)
+         -> tests/apb_poc_path_scoreboard: each finished OK/SLVERR item = one observation
 ```
+
+`apb_driver.done_ap` and `apb_monitor.ap` are the UVC's two analysis ports. A request and its observation use one encoding, so they compare equal field by field; in particular, on an instance without `PSTRB` both carry all strobe lanes set for a write.
 
 ## Integrating the UVC
 
@@ -122,6 +126,8 @@ Inside this repository's AI workflow, no simulator or compiler may be run withou
 | UVM fault injection | same | same | `+UVM_TESTNAME=apb_fault_injection_test +APB_FAULT=1\|2\|3` | `TEST_RESULT: PASS` |
 | UVM cfg legality | same | same | `+UVM_TESTNAME=apb_cfg_negative_test` | `TEST_RESULT: PASS` |
 | UVM width boundary | same | same | `+UVM_TESTNAME=apb_width_negative_test` | `TEST_RESULT: PASS` |
+| UVM corrupted drive path | same | same | `+UVM_TESTNAME=apb_path_negative_test` | `TEST_RESULT: PASS` (corruption on B detected) |
+| UVM instance without PSTRB | same | same | `+UVM_TESTNAME=apb_no_pstrb_test` | `TEST_RESULT: PASS` (B runs as APB3) |
 
 Add `+define+APB_ENABLE_DW64_EXTENSION` at compile time to include the DW=64 instance (and agent) in any flow.
 

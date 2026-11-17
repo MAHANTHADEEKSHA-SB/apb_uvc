@@ -1,13 +1,20 @@
 # Architecture contract — single APB UVC POC
 
-**Version:** 0.10 · **Date:** 2026-10-29
+**Version:** 0.11 · **Date:** 2026-11-17
 **Change in 0.8 (`dev`, PR #3):** toolchain selection and execution gate — no simulator/compiler runs without explicit user approval.
 **Change in 0.8 (`feature/apb-001-protocol-contract`):** APB revision scope revised per owner decision (configurable APB2–APB5); protocol detail moved to `APB_PROTOCOL_CONTRACT.md`.
 **Change in 0.9:** ADR-001 Amendment A1 (owner-approved) — width pair DW=32 + DW=16; DW=64 kept as a non-standard extension, off by default.
 **Change in 0.10:** merge of both 0.8 lines; combined text only, no new decisions.
+**Change in 0.11:** owner decision D-018 — the final goal (the same environment must scale to emulation) is stated below; no accepted decision is changed.
 **Scope:** One reusable **APB UVC** developed under `poc/apb_uvc/`, comprising HDL signal interface, independent drive/monitor BFMs, HVL abstract and concrete proxies, UVM agent, coverage, sequences, filelists and demo. Existing flat-layout APB UVC files at the repository root are **not to be changed** by this milestone.
 
 This contract describes *intended architecture*, not a claim that code has been generated, compiled, simulated or accepted by a simulator. Accepted decisions can change only by a recorded, reviewed ADR amendment. Execution status belongs in `WORK_STATUS.md`.
+
+## Final goal — emulation [OWNER DECISION D-018, 2026-11-17; NOT MET]
+
+The same DV environment must scale to emulation: the HVL side (UVM classes, sequences, tests) is kept, and the HDL side (interfaces, BFMs, clock and reset generation) must be acceptable to an emulator. Milestone M1 was written for simulation and does **not** meet this goal; nothing in this repository claims emulation compatibility. The constructs that stand in the way, and a proposed restyle of the BFMs, are in `REVIEW_FEEDBACK.md` RV-009. The target emulator is not named yet.
+
+**Proposed guard until the restyle is decided (owner to confirm):** new code does not add to the RV-009 list — no new time-consuming statement on the HVL side, and no new dynamic process, named event, queue or string in a BFM.
 
 ## Decision states
 

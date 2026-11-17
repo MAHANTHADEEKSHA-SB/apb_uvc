@@ -141,12 +141,12 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Reviewers: Claude (Claude Code session), by reading the sources. The same assistant wrote them, so this is **not** an independent review; APB-006 stays open.
 - Reviewed branch and full SHA: `feature/apb-005-passive-reset-apb3-tests` at `b406d6a9c75aca158671f304257ce9a5ba346710` (same tree as `dev`).
 - Evidence: reasoning from the cited lines and text searches. **No simulator, compiler, elaborator or lint tool was run**, so every scenario below is NOT RUN and a simulation may refute it.
-- Corrective actions are PROPOSED and none is implemented. Fix commit, retest and closure decision: none yet; add them to the finding when it is fixed.
+- Corrective actions were PROPOSED when recorded. RV-001 and RV-002 have since been implemented (owner decision D-019) and carry their fix commits; the others have a dated disposition line. Nothing has been retested by a tool.
 
 **Overall:** no blocking defect was found by reading. For APB4 traffic that starts on a clock edge, the drive, observe and configuration flows agree with `APB_PROTOCOL_CONTRACT.md`. The findings are about what the UVM tests cannot detect, about reset, and about two conventions that will break the next planned tests.
 
 ### RV-001 — UVM tests do not tie the drive path to the observe path
-- Status: OPEN
+- Status: FIXED_UNVERIFIED (2026-11-17)
 - Severity: MAJOR
 - APB revision / width configuration: all
 - File(s) and line(s): `tests/apb_poc_scoreboard.sv:36-65`, `tests/apb_poc_env.sv:39-44`, `tests/apb_poc_seqs.sv:28-47`, `hvl/agent/apb_driver.sv:51-62`, `hvl/types/apb_transaction.sv:136-148`
@@ -154,9 +154,12 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: a change that alters data the same way in both directions still passes `apb_poc_test`. Examples: the drive adapter narrows `wdata`; the driver returns a wrong `rdata` to the sequence. The scoreboard is fed only by the monitor and builds its memory model from the *observed* writes, so it proves that the bus is self-consistent, not that the bus carried what the sequence asked for.
 - Evidence: `apb_transaction::do_compare()` is never called; `apb_driver::num_sent` and `apb_monitor::num_observed` are never compared; no sequence or test reads `rdata` from a completed item; the monitor's analysis port is the only one. The HDL smoke test does make these checks (`tests/apb_hdl_smoke.sv:83-95` and `:165-186`), but it calls the BFMs directly, so the HVL adapters, the subject of ADR-001, are not covered by them.
 - Corrective action: (1) `apb_driver` publishes each completed item on an analysis port; (2) a comparator in `tests/` matches every completed item with status OK or SLVERR to exactly one observation, in order, with `compare()`, accepts either arrival order within a time step, and at the end of the test requires empty queues and equal counts; (3) the directed sequence checks read-back data against the pattern it wrote; (4) a negative control, for example a drive-proxy double that flips one data bit, proves the comparator fires (VER-03).
+- Fix commit: `a6f49b9` (`apb_driver.done_ap`) and `4a6f1fd` (`apb_poc_path_scoreboard`, read-back checks in `apb_poc_directed_seq`, `apb_corrupt_drive_proxy` and `apb_path_negative_test`). As implemented, the comparator also checks wait states and status, and reports leftovers under their own ID `APB_PATH_COUNT`.
+- Retest tool/version + exact command + log + result: NOT RUN. No simulation. The approved slang elaboration was not re-run on these commits: a re-run on 2026-11-17 was refused pending the owner's explicit go-ahead in the session. Checked by reading and by the text checks of the pre-commit checklist only.
+- Closure decision: open until `apb_poc_test` and `apb_path_negative_test` have run.
 
 ### RV-002 — `strb` is encoded differently in a request and in an observation when PSTRB is absent
-- Status: OPEN
+- Status: FIXED_UNVERIFIED (2026-11-17)
 - Severity: MAJOR (blocks the planned APB2/APB3 integration test)
 - APB revision / width configuration: APB2 and APB3, and any instance with `has_pstrb = 0`
 - File(s) and line(s): `hvl/types/apb_transaction.sv:69`, `hvl/adapter/apb_drive_proxy.sv:164-168`, `hdl/apb_monitor_bfm_if.sv:229`, `tests/apb_poc_scoreboard.sv:55-57`
@@ -164,6 +167,9 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: on an instance without PSTRB a write request must carry every lane set (constraint and adapter check), but the monitor reports the same transfer with `strb = 0`. The fixture scoreboard updates its model only on set lanes, so it models no write; once an HDL top ties the fixture's `PSTRB` to `PWRITE`, every read-back mismatches. The RV-001 comparison would also fail on every write.
 - Evidence: the cited lines. The two conventions have never met, because every instance in the tests is APB4 with PSTRB.
 - Corrective action: the monitor BFM reports every lane set for a write when PSTRB is absent (`{STRB_WIDTH{PWRITE}}`, the Table 3-1 tie-off); state the convention in contract section 6; sample `cp_strb` only when the instance has PSTRB.
+- Fix commit: `fb017fe` (the monitor BFM reports `{STRB_WIDTH{PWRITE}}` without PSTRB; `cp_strb` gated on `has_pstrb`; `apb_no_pstrb_test`, which fails without the BFM change). Contract section 6 was updated in the documentation commit of the same push.
+- Retest tool/version + exact command + log + result: NOT RUN, for the same reasons as RV-001.
+- Closure decision: open until `apb_no_pstrb_test` has run. A fixture with the Table 3-1 tie-off, needed for a full APB3 integration test, is still a known gap.
 
 ### RV-003 — The reset flow does not yet meet RST-2, RST-4 and RST-5
 - Status: OPEN
@@ -179,6 +185,7 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
   5. *Tests cannot call `pulse_reset_a/b`.* The UVM tests are in a package, and a package may not contain hierarchical references (IEEE 1800-2017 clause 26.2). Only a module such as `apb_hvl_top` can make that call.
 - Evidence: reasoning from the cited lines. One more case to design for: a reset asserted in the same time step as a completing rising edge is a completed transfer for the monitor (it samples before the edge) and `RESET_ABORTED` for the driver.
 - Corrective action (depends on Q5; write it into contract sections 5 and 7 before coding): (a) the monitor BFM latches reset asynchronously and consumes the latch at its next sample, so a short pulse is counted and the partial transfer discarded; (b) reset entry and exit are queued in the monitor BFM, delivered through a new blocking observe-API task and published by `apb_monitor` on a separate analysis port; (c) RST-5 is enforced inside the driver BFM (cycles since release), so it also holds between items and for HDL-only users; (d) decide whether an item requested during reset waits for the release (recommended) or aborts; (e) the scoreboard clears its model and the coverage samples the reset phase on the reset event; (f) a reset-control class constructed in `apb_hvl_top` gives tests a legal way to pulse reset.
+- Disposition 2026-11-17 (D-018, D-019): not implemented now. Reset handling is to be designed inside the emulation restyle (RV-009), which replaces the `fork`-based reset watcher.
 
 ### RV-004 — The driver BFM can change its outputs between clock edges
 - Status: OPEN
@@ -189,6 +196,7 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: `do_transfer()` is called between two clock edges with `idle_cycles == 0`, for example by a sequence that waits for a delay or an event before its next item (the default constraint gives about one random item in three `idle_cycles == 0`). `repeat (0) @(cb)` does not wait, so the SETUP values are scheduled at the call time and change in the middle of a cycle.
 - Evidence: reasoning from the cited lines. The existing tests do not show it, because every item is requested in the time step in which the previous one completed. A Completer that samples on the rising edge still sees one SETUP cycle, so this is a timing-discipline defect rather than a protocol failure in a zero-delay simulation.
 - Corrective action: the BFM records the time of the latest PCLK rising edge and `do_transfer()` waits for one `@(cb)` when it is called at any other time; add a directed test with a delay between two items.
+- Disposition 2026-11-17 (D-019): not implemented. The proposed fix would not survive the emulation restyle (RV-009), where a clocked state machine takes a request on a clock edge by construction.
 
 ### RV-005 — Random traffic never sends sparse strobes, and some implemented behaviour has no test
 - Status: OPEN
@@ -199,6 +207,7 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: the transaction's soft constraint makes every write full-width unless a sequence overrides it. `apb_random_seq` does not, although its header says strobes are randomized, so the `STRB_PARTIAL` coverage bin is reached only by the one directed lane-0 write.
 - Evidence: the cited lines. Implemented but exercised by no test: POL-01 (unaligned address rejected or allowed), POL-02 (wait-state watchdog, `APB_ST_TIMEOUT`), `allow_x_wdata`, `APB_ST_NOT_ENABLED`, and a DW=8 instance (legal per IHI 0024D 2.1.2; one strobe lane is a corner for the lane arithmetic).
 - Corrective action: a knob in `apb_random_seq` for the share of sparse-strobe writes, used when the instance has PSTRB; directed tests for POL-01 and POL-02 (the fixture gives up to 3 wait states, so `max_wait_cycles = 2` trips the watchdog); a DW=8 instance in the HDL top.
+- Disposition 2026-11-17 (D-019): ignored for now; not very significant.
 
 ### RV-006 — Integration needs 57 named port connections per bus
 - Status: OPEN
@@ -209,6 +218,7 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: every integrator repeats 26 driver-BFM and 31 monitor-BFM connections per bus. A BFM connected to the wrong bus of the same width compiles, and CFG-06 cannot see it because it compares widths only.
 - Evidence: the cited lines; `apb_hdl_top.sv` is 320 lines, 213 of them port connections.
 - Corrective action (needs a note in ADR-002 and a wording change in HDL-02): add a small module to the reusable core, for example `hdl/apb_bfm_harness.sv`, with one `apb_if` port, that instantiates both BFMs and makes the connections once. The BFM interfaces keep their ordinary signal ports and still have no interface-typed port, so virtual handles to them stay legal. Integration becomes one `apb_if` and one harness instance, and the same module can be attached to a design with `bind`.
+- Disposition 2026-11-17 (D-019): ignored for now. It gains weight under D-018: a harness can decide at elaboration time whether an instance has a driver BFM at all, which is how a passive instance should be built for emulation (RV-009).
 
 ### RV-007 — Smaller consistency items
 - Status: OPEN
@@ -221,6 +231,7 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
   4. `hdl/apb_driver_bfm_if.sv:221-222`, `hdl/apb_monitor_bfm_if.sv:331-336`, `hvl/adapter/apb_monitor_proxy.sv:113` — X/Z on `PSLVERR` at completion is treated as "no error" (status OK) and is not counted; X/Z on `PWDATA` in a strobed lane is not checked (APB-R08, APB-R11, RISK-008). Proposed: two new `apb_mon_error_e` codes, each with a negative test (HDL-08).
   5. `tests/apb_poc_test.sv:29-35` — a UVM fatal, including the global timeout, ends the run before `report_phase`, so no `TEST_RESULT` line is printed and the `UVM_FATAL` term of the count is never reached. Proposed: print the FAIL line from `pre_abort()`; until then a missing line must be read as a failure.
   6. `.gitignore:1` — names `scripts/run_hdl_smoke.sh`, which `40f385b` deleted. Proposed: correct the comment.
+- Disposition 2026-11-17 (D-019): ignored for now; not very significant. Item 4 moves into RV-009, where the X/Z checks leave the BFM.
 
 ### RV-008 — Execution status is repeated in several documents and already disagrees
 - Status: OPEN (the resume command, the current-branch pointer and RISK-001 were corrected on 2026-11-17)
@@ -230,6 +241,9 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 - Failing scenario: after the approved elaboration at `386e64d` these lines still say that nothing was compiled, and after pull request #4 `WORK_STATUS.md` still sent the next session to a deleted branch. Every new session has to work out which statement is current.
 - Evidence: text search on 2026-11-17.
 - Corrective action: keep execution status in `WORK_STATUS.md` only; the README files and the contract link to it and stop restating it; add "update *Resume here* for the state after the merge" to the pre-commit checklist. Two process suggestions for the owner: give a pull request the title of its main change (pull request #4 added the whole UVC under a `docs(dv)` title), and let the installed review bot also review pull requests into `dev` (it skipped #4 because `dev` is not the default branch), which gives a first automatic pass before APB-006.
+- Update 2026-11-17: the status line of `README.md` (`:5` above) now points to `WORK_STATUS.md` instead of restating status. The contract lines and `docs/dv-architecture/README.md:27` are unchanged.
+- Owner question 2026-11-17, "is the Markdown flow decent?" — yes, with three weaknesses. It does its job: this session resumed from Git and Markdown alone, and `DECISION_LOG.md` together with the rule IDs in `CODING_GUIDELINES.md` is what made that possible. The weaknesses: (1) the same fact lives in several files (14 Markdown files, about 25,000 words, for 3,850 lines of source), which is how the contradictions above appeared within a day; (2) it recorded decisions but not the goal behind them — emulation, the requirement that shapes the BFMs most, was not written down until D-018, so D-005 and the RISK-010 reverts were decided without it; (3) nothing is checked by machine and nothing has been simulated, so the flow rests on every session reading all of it and updating four files by hand.
+- Proposed for the flow (not done; a change to the owner's process): one home per kind of fact — goals and decisions in `DECISION_LOG.md`, rules in `CODING_GUIDELINES.md` with both `AGENTS.md` files reduced to the read order, status only in `WORK_STATUS.md`, findings here, design in the contract and the ADRs with no status in them; fold the still-valid rules of `CLAUDE_GENERATION_PROMPT.md` and `DIRECTORY_ARCHITECTURE.md` into those and retire the two files; add a milestone exit rule ("no new milestone until the previous one has run"); and a small text-only script for the mechanical checklist items.
 
 ### Points to watch in the first simulation (not defects)
 - Back-to-back transfers in the UVM flow: the IDLE values and the next SETUP values are scheduled in the same time step but in different delta cycles, so a waveform may show a zero-width 1→0→1 pulse on `PSEL` at the completion edge. Values at the clock edges are correct.
@@ -237,6 +251,44 @@ The owner asked on 2026-11-16 for a check of "the flow and things", with freedom
 
 ### Question for the owner (not a finding)
 - Is emulation-friendliness of the BFMs a goal? The HVL-side proxy split is usually chosen for it, but the BFMs use `fork`/`disable fork`, a named event, a dynamic queue and strings, which emulation flows generally do not accept. If it is a goal, decide before M2 and M3 add more BFM code; if it is not, say so in the contract.
+- **Answered 2026-11-17 (D-018): yes, emulation is the final goal.** See RV-009.
+
+## Review finding — emulation readiness, 2026-11-17
+
+### RV-009 — The BFMs and the tests are not emulation-ready
+- Status: OPEN
+- Severity: MAJOR against the final goal (D-018); it does not affect simulation
+- Reviewers: Claude (Claude Code session), by reading the sources; not an independent review
+- Reviewed branch and full SHA: `feature/apb-005-passive-reset-apb3-tests` at `fb017fe874f650ae5c6b9502b59d52d4a35d0830`
+- APB revision / width configuration: all
+- Requirement / architecture ADR: D-018 and `ARCHITECTURE_CONTRACT.md` *Final goal*; ADR-001 decision 3 and its risk list (emulation must be checked, not presumed); ADR-002 decisions 6 and 7
+- Evidence: text search of the sources. **No tool was run and no emulator was consulted.** The rules applied are the usual ones for co-emulation: a timed, synthesizable HDL side; an untimed HVL side; transactions, not signals, across the boundary. They differ in detail between emulators, so every item must be confirmed against the modeling guide of the emulator that is chosen.
+- What already fits:
+  - two tops: `apb_hdl_top` (clocks, resets, BFMs, DUT) and `apb_hvl_top` (UVM);
+  - HVL-side adapters holding virtual BFM handles, and no class object inside an HDL interface;
+  - only plain values cross the boundary, with one call per transfer in each direction (`do_transfer()`, `get_transfer()`);
+  - the core UVM components consume no time (UVM-12).
+- What does not (file and line at the reviewed SHA):
+  1. Dynamic processes and a level-sensitive wait in the driver BFM: `fork … join_any`, `disable fork` and `wait` (`hdl/apb_driver_bfm_if.sv:205-245`), plus a process sensitive to the reset level (`:290-291`).
+  2. A named event and a dynamic queue in the monitor BFM (`hdl/apb_monitor_bfm_if.sv:94-95`, `:176-177`, `:219-220`).
+  3. Strings in the BFMs: messages built with `string`, `$sformatf` and `%m` (`hdl/apb_monitor_bfm_if.sv:204-207`, `:241`, `:246`, `:287`, and the `$error("%m …")` calls of both `configure()` functions).
+  4. Clocking blocks for sampling (`hdl/apb_driver_bfm_if.sv:103-106`, `hdl/apb_monitor_bfm_if.sv:108-112`).
+  5. Passive mode by releasing outputs to `'z` on resolved nets (`hdl/apb_driver_bfm_if.sv:79-98`; 29 `wire logic` nets in `hdl/apb_if.sv`).
+  6. X/Z checks inside the monitor BFM (`hdl/apb_monitor_bfm_if.sv:236-238`, `:264`, `:280`, `:299`, `:327`). An emulator is 2-state, so these checks exist only in simulation and belong beside the BFM, not inside its synthesizable part.
+  7. The HVL side reads BFM variables directly through the virtual handle (`hvl/adapter/apb_monitor_proxy.sv:134`, `:138`); only task and function calls should cross.
+  8. Time on the HVL side: `#200ns` (`tests/apb_negative_tests.sv:157`), and a timeout and a drain time in time units (`tests/apb_poc_test.sv:26`, `:62`). The HVL side has to be untimed; a test that must wait asks a BFM to count clocks.
+  9. NN-01 forbids every tool pragma. Emulators commonly need a marker on the BFM tasks called from the HVL side and on clock generators, as a comment pragma or in a separate tool file. This needs a decision once the emulator is known.
+- Related history: two of the changes reverted under RISK-010 point in the direction this needs. C2 replaced the `fork` reset watcher by a reset check on every PCLK, and C3 replaced the named event by a clocked wake-up. They were reverted as tool-driven edits (D-005); under D-018 they would return as design, not as a workaround for a tool.
+- Corrective action (PROPOSED as a milestone before M2; it needs the owner's approval, an ADR-002 amendment for the transport, and new rules in `CODING_GUIDELINES.md`):
+  - both BFMs become clocked state machines that sample on `@(posedge PCLK)`, drive with nonblocking assignments and check reset on every clock, with no `fork`, event, queue, string or clocking block;
+  - observations go through a fixed-depth FIFO, and `get_transfer()` waits on clock edges;
+  - violations are reported as codes and counters only, and the text is built on the HVL side;
+  - the X/Z checks move to a simulation-only checker next to the BFM;
+  - a passive instance has no driver BFM (an elaboration choice, for example in the RV-006 harness) instead of a released one;
+  - the drive and observe APIs get a "wait N clocks" call, so tests need no time literal;
+  - RV-003 (reset) and RV-004 (edge alignment) are solved inside this restyle instead of being patched now.
+- Open questions for the owner: which emulator is the target, and whether its markers may be an exception to NN-01.
+- Fix commit: none. Retest: NOT RUN. Closure decision: open.
 
 ## Closed findings
 

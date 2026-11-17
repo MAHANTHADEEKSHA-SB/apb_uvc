@@ -180,7 +180,7 @@ IHI 0024D only says that `PRESETn` is active-LOW and normally connected to the s
 | `dir` | `apb_dir_e` {`APB_READ`, `APB_WRITE`} | |
 | `addr` | `logic [`APB_MAX_ADDR_WIDTH`-1:0]` | max 32 per [IHI Table 2-1] |
 | `wdata`, `rdata` | `logic [`APB_MAX_DATA_WIDTH`-1:0]` | default 32 per [IHI §2.1.2]; set `+define+APB_MAX_DATA_WIDTH=64` for the extension |
-| `strb` | `logic [`APB_MAX_DATA_WIDTH`/8-1:0]` | |
+| `strb` | `logic [`APB_MAX_DATA_WIDTH`/8-1:0]` | Byte lanes written. On an instance without `PSTRB` every write carries all lanes set, in the request (constraint and adapter check) and in the observation (monitor BFM), and reads carry 0 [IHI Table 3-1]; one encoding on both paths (RV-002) |
 | `prot` | `logic [2:0]` | |
 | `auser`, `wuser`, `ruser`, `buser` | `logic [`APB_MAX_*_USER_WIDTH`-1:0]` | **M2, not in the class yet**; planned maxima 128 / 32 / 32 / 16, overridable by `+define+` |
 | `sel` | `int unsigned` | index into `PSEL[NUM_SEL-1:0]` |
@@ -251,7 +251,7 @@ Compile order: `apb_bfm_pkg` → HDL interfaces → `uvm_pkg` → `apb_api_pkg` 
 | 3 HVL API (**written; compile NOT RUN**) | `hvl/types/apb_defines.svh`, `hvl/types/apb_transaction.sv`, `hvl/api/apb_drive_proxy_base.sv`, `hvl/api/apb_monitor_proxy_base.sv`, `hvl/pkg/apb_api_pkg.sv` | |
 | 4 HVL concrete (**written; compile NOT RUN**) | `hvl/adapter/apb_drive_proxy.sv`, `hvl/adapter/apb_monitor_proxy.sv`, `hvl/pkg/apb_adapter_pkg.sv` | |
 | 5 UVM (**written; compile NOT RUN**) | `hvl/config/apb_agent_cfg.sv`, `hvl/agent/{apb_driver,apb_monitor,apb_sequencer,apb_agent}.sv`, `hvl/sequences/{apb_base_seq,apb_random_seq}.sv`, `hvl/coverage/apb_coverage.sv`, `hvl/pkg/apb_uvc_pkg.sv`, `filelists/{apb_hvl,apb_poc}.f`, `examples/apb_hvl_top.sv` | |
-| 6 Tests (**written; NOT RUN**) | `tests/apb_poc_test_pkg.sv` with `apb_poc_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv`. No `run_poc.sh`: simulator commands depend on the approved tool | M1 tests: APB4; passive, reset and APB2/APB3 tests still missing (WORK_STATUS *Known gaps*) |
+| 6 Tests (**written; NOT RUN**) | `tests/apb_poc_test_pkg.sv` with `apb_poc_scoreboard.sv`, `apb_poc_path_scoreboard.sv`, `apb_poc_env.sv`, `apb_poc_seqs.sv`, `apb_fake_proxies.sv`, `apb_poc_test.sv`, `apb_fault_injection_test.sv`, `apb_negative_tests.sv`, `apb_no_pstrb_test.sv`. No `run_poc.sh`: simulator commands depend on the approved tool | M1 tests: APB4; passive, reset and APB2/APB3 tests still missing (WORK_STATUS *Known gaps*) |
 | later M2 | same files | APB5 `PWAKEUP` + user signals |
 | later M3 | same files + `assertions/` | APB5 parity generation/checking + parity fault injection |
 
