@@ -11,6 +11,7 @@
 //   apb_cfg_negative_test     CFG-01..06 legality verdicts (no bus traffic)
 //   apb_width_negative_test   unfit write on DW=16 must be rejected, not truncated
 //   apb_path_negative_test    corrupted drive path on B must be caught (RV-001)
+//   apb_no_pstrb_test         B as APB3: writes observed full-width (RV-002)
 //
 // Include directory: tests.
 // -----------------------------------------------------------------------------
@@ -31,5 +32,6 @@ package apb_poc_test_pkg;
   `include "apb_poc_test.sv"
   `include "apb_fault_injection_test.sv"
   `include "apb_negative_tests.sv"
+  `include "apb_no_pstrb_test.sv"
 
 endpackage : apb_poc_test_pkg

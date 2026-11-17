@@ -220,13 +220,16 @@ interface apb_monitor_bfm_if
     -> obs_ev;
   endtask
 
-  // Capture the request-side values of a transfer from the current sample
+  // Capture the request-side values of a transfer from the current sample. Without
+  // PSTRB every write is a full-width write (IHI 0024D Table 3-1), so strb is reported
+  // as an APB4 Completer with PSTRB tied to PWRITE would see it: the value the request
+  // carries too (DATA-04).
   task automatic capture_request();
     cur             = '0;
     cur.write       = cb.PWRITE;
     cur.addr        = cb.PADDR;
     cur.wdata       = cb.PWRITE ? cb.PWDATA : '0;
-    cur.strb        = features.has_pstrb ? cb.PSTRB : '0;
+    cur.strb        = features.has_pstrb ? cb.PSTRB : {STRB_WIDTH{cb.PWRITE}};
     cur.prot        = features.has_pprot ? cb.PPROT : 3'b000;  // IHI Table B-1 default
     cur.sel         = cb.PSEL;
     cur.start_cycle = cycle;

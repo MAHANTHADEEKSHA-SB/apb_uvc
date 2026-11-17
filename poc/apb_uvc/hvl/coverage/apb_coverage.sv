@@ -21,7 +21,8 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
   protected bit              has_prev;
 
   // Sampled once per observed transfer. b2b: SETUP right after the previous
-  // completion (APB-R05). cp_prot is ignored when the instance has no PPROT.
+  // completion (APB-R05). cp_strb and cp_prot are not sampled when the instance has
+  // no PSTRB or no PPROT: without PSTRB every write is full-width by definition.
   covergroup cg with function sample(apb_dir_e dir, int unsigned waits, bit slverr,
                                      strb_kind_e strb_kind, bit b2b, logic [2:0] prot);
     option.per_instance = 1;
@@ -34,7 +35,8 @@ class apb_coverage extends uvm_subscriber #(apb_transaction);
       bins several = {[3:$]};
     }
     cp_slverr : coverpoint slverr;
-    cp_strb   : coverpoint strb_kind iff (dir == APB_WRITE) {
+    cp_strb   : coverpoint strb_kind
+                iff (dir == APB_WRITE && cfg != null && cfg.features.has_pstrb) {
       ignore_bins none_on_write = {STRB_NONE};
     }
     cp_b2b    : coverpoint b2b;
