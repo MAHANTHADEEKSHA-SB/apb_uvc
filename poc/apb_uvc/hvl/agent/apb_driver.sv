@@ -8,14 +8,19 @@
 //
 // Reset (RST-3/RST-5): after an item ends with APB_ST_RESET_ABORTED the
 // driver waits for reset release before taking the next item.
+//
+// A copy of every finished item is also published on done_ap, so a test can
+// compare what was requested with what the monitor observed (ADR-001 gates 2
+// and 3, REVIEW_FEEDBACK RV-001).
 // Included by apb_uvc_pkg.
 // -----------------------------------------------------------------------------
 
 class apb_driver extends uvm_driver #(apb_transaction);
   `uvm_component_utils(apb_driver)
 
-  apb_agent_cfg cfg;  // set by apb_agent
-  int unsigned  num_sent;
+  apb_agent_cfg                        cfg;      // set by apb_agent
+  uvm_analysis_port #(apb_transaction) done_ap;  // a copy of every finished item
+  int unsigned                         num_sent;
 
   protected apb_drive_proxy_base drive;
 
@@ -23,10 +28,11 @@ class apb_driver extends uvm_driver #(apb_transaction);
     super.new(name, parent);
   endfunction
 
-  // Take the drive capability from the cfg the agent passed in; an active agent
-  // without one is a configuration error.
+  // Create the finished-item port and take the drive capability from the cfg the
+  // agent passed in; an active agent without one is a configuration error.
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
+    done_ap = new("done_ap", this);
     if (cfg == null)
       `uvm_fatal("APB_DRV", "apb_agent_cfg not set by the agent")
     drive = cfg.drive;
@@ -47,7 +53,8 @@ class apb_driver extends uvm_driver #(apb_transaction);
   endfunction
 
   // Wait for reset release (RST-5), then serve items until one is abandoned by reset
-  // (RST-3), then wait for the next release. Each item is completed in place.
+  // (RST-3), then wait for the next release. Each item is completed in place and a
+  // copy is published before item_done().
   virtual task run_phase(uvm_phase phase);
     forever begin
       drive.wait_for_reset_release(cfg.post_reset_idle_cycles);
@@ -56,10 +63,20 @@ class apb_driver extends uvm_driver #(apb_transaction);
         drive.send(req);
         num_sent++;
         report_result(req);
+        publish_done(req);
         seq_item_port.item_done();
       end while (req.status != APB_ST_RESET_ABORTED);
     end
   endtask
+
+  // Publish the finished item, response fields included, whatever its status. A copy,
+  // because the sequence still owns the item and may change it after item_done().
+  protected function void publish_done(apb_transaction t);
+    apb_transaction done;
+    if (!$cast(done, t.clone()))
+      `uvm_fatal("APB_DRV", "clone() of a finished item is not an apb_transaction")
+    done_ap.write(done);
+  endfunction
 
   // Report each outcome at a severity that matches its status (UVM-09): timeouts are
   // errors, a disabled BFM is fatal, rejections were already reported by the adapter.
